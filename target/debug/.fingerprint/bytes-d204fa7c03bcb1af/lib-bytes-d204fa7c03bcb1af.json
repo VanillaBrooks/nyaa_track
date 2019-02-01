@@ -1,1 +1,0 @@
-{"rustc":16506240824610328313,"features":"[]","target":15537707812324464965,"profile":11870183705523825133,"path":5817994177793951714,"deps":[["byteorder v1.3.0","byteorder",5795756805105490105],["iovec v0.1.2","iovec",7952644137888481686]],"local":[{"Precalculated":"0.4.11"}],"rustflags":[],"edition":"Edition2015"}

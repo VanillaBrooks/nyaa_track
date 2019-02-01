@@ -1,0 +1,1 @@
+{"rustc":16506240824610328313,"features":"[]","target":1253588882425671224,"profile":14900699017513421864,"path":1036222786711178230,"deps":[["reqwest v0.9.9","reqwest",4735988080348006170]],"local":[{"MtimeBased":[[1549015211,194439200],".fingerprint\\nyaa_tracker-fe3100b28d95abeb\\dep-bin-nyaa_tracker-fe3100b28d95abeb"]}],"rustflags":[],"edition":"Edition2018"}

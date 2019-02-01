@@ -446,10 +446,6 @@ dependencies = [
 name = "nyaa_tracker"
 version = "0.1.0"
 dependencies = [
- "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "http 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.12.23 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper-tls 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

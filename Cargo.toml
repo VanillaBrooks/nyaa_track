@@ -6,8 +6,4 @@ edition = "2018"
 reqwest = "0.9.8"
 
 [dependencies]
-hyper = "0.12.21"
-futures = "0.1.25"
-hyper-tls = "0.3.1"
-http = "0.1.15"
 reqwest = "0.9.9"
