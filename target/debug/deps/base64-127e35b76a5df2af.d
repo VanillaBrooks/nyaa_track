@@ -1,0 +1,12 @@
+C:\Users\Brooks\github\nyaa_tracker\target\debug\deps\base64-127e35b76a5df2af.rmeta: C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\lib.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\chunked_encoder.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\display.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\write\mod.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\write\encoder.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\tables.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\encode.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\decode.rs
+
+C:\Users\Brooks\github\nyaa_tracker\target\debug\deps\base64-127e35b76a5df2af.d: C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\lib.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\chunked_encoder.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\display.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\write\mod.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\write\encoder.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\tables.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\encode.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\decode.rs
+
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\lib.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\chunked_encoder.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\display.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\write\mod.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\write\encoder.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\tables.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\encode.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\base64-0.10.0\src\decode.rs:

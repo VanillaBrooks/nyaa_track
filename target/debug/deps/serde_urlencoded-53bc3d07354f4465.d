@@ -1,0 +1,11 @@
+C:\Users\Brooks\github\nyaa_tracker\target\debug\deps\serde_urlencoded-53bc3d07354f4465.rmeta: C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\lib.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\de.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\mod.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\key.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\pair.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\part.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\value.rs
+
+C:\Users\Brooks\github\nyaa_tracker\target\debug\deps\serde_urlencoded-53bc3d07354f4465.d: C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\lib.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\de.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\mod.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\key.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\pair.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\part.rs C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\value.rs
+
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\lib.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\de.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\mod.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\key.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\pair.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\part.rs:
+C:\Users\Brooks\.cargo\registry\src\github.com-1ecc6299db9ec823\serde_urlencoded-0.5.4\src\ser\value.rs:
