@@ -109,7 +109,7 @@ fn parse_html <'a>(html_vector: &Vec<String>, url_vector: &'a Vec<String>, prev_
 	}
 
 
-	return UpdateFrequency::new() // placehodler
+	UpdateFrequency::new() // placehodler
 }
 
 
@@ -121,7 +121,7 @@ fn main() {
 	let urls_to_check = vec!["https://nyaa.pantsu.cat/", "https://nyaa.si"];
 	// get magnet link data
 	let results_struct = sync_request(urls_to_check, &client, results_container);
-
+	println!{"here"}
 	let previous_frequencies = UpdateFrequency::new();
 	let previous_frequencies = parse_html(&results_struct.html_data , &results_struct.scraped_urls, previous_frequencies);
 
