@@ -1,6 +1,10 @@
 use std::time::Instant;
-
+use hashbrown;
 use reqwest as request;
+#[macro_use]
+mod encoding;
+
+
 
 // for holding time data
 struct Timing{
@@ -113,18 +117,11 @@ fn parse_html <'a>(html_vector: &Vec<String>, url_vector: &'a Vec<String>, prev_
 }
 
 
+
 fn main() {
-	let avg = Timing::new();
-	let client = request::Client::new();
-	let mut results_container = GetResults::new();
-
-	let urls_to_check = vec!["https://nyaa.pantsu.cat/", "https://nyaa.si"];
-	// get magnet link data
-	let results_struct = sync_request(urls_to_check, &client, results_container);
-	println!{"here"}
-	let previous_frequencies = UpdateFrequency::new();
-	let previous_frequencies = parse_html(&results_struct.html_data , &results_struct.scraped_urls, previous_frequencies);
-
-	// cycle through the older torrents and find which ones need to be scraped again
-
+	dbg!(bencode!{"one_word"});
+	dbg!(bencode!{["sequence", "of", "values"]});
+	dbg!(bencode!{{"sample":"dictionary","multiple":"values"}});
+	dbg!(bencode!{raw: "raw_one_word"});
+	dbg!(bencode!{raw: 234i32});
 }
