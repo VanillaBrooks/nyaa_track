@@ -28,9 +28,12 @@ fn main() {
 
 	// println!{"dict starts: {:?} list starts: {:?} ends: {:?}", dict_ends, starts, ends}
 
-	encoding::bencode::general(&dict);
-	println!{"{}", dict.get(1..42).unwrap()}
-	dbg!{dict.get(27..37)};
+	// encoding::bencode::general(&dict);
+	// println!{"{}", dict.get(1..42).unwrap()}
+	// dbg!{dict.get(27..37)};
+
+	encoding::bencode::find_all_strings(&dict);
+
 
 }
 

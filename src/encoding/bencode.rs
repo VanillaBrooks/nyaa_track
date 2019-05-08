@@ -108,23 +108,122 @@ impl Decoding_Positions{
 }
 
 
-fn check_letter(input: &str, character: &str) -> bool {
-    match input.get(0..1) {
-        Some(x) => {
-            if x == character{
-                return true
-            }
-            return false
+pub fn general(input: &str) -> Result<Vec<DeBencode>, &str> {
+    
+    let collections = parse_for_lists_and_dicts(&input);
+
+    if collections.is_empty(){
+        let nums = find_all_numbers(&input)?;
+        if nums.len() ==0{
+            let s = &nums[0];
+            return Ok(vec![parse_number(&input, s.start, s.end)?])
         }
-        None => return false
+        else if nums.len() >= 1 {
+            return Err("We found more than one number after no dicts and lists were found. this should not happen")
+        }
+        // else {
+        //     let strings + find_all_strings(&input)?;
+        // }
+        
+    }
+    dbg!{collections};
+
+
+    // let dict_starts = 
+
+    return Ok(vec![DeBencode::Num(23)])
+
+}
+pub fn find_all_strings(input: &str) -> Result<Vec<Locations>, &str> {
+    let str_start = Regex::new(r"\d:").unwrap();
+
+    let starting_indicies : Vec<_> = str_start.find_iter(&input).map(|x| x.start()).collect();
+
+    let mut output: Vec<Locations> = vec![];
+    for i in starting_indicies {
+
+        let starting_pos = input.get(i..i+1);
+
+        let slice = match starting_pos {
+            Some(x) => x,
+            None => return Err("could not correctly slice the string in find_all_strings"),
+        };
+
+        let num_start = match slice.parse::<usize>() {
+            Ok(x) => x,
+            Err(x) => return Err("could not parse the byte count from find_all_strings")
+        };
+
+        output.push(Locations::new(i+2, i+2+num_start));
+    }
+
+    return Ok(output)
+}
+
+fn parse_string(input: &str, start: usize, end: usize) -> Result<DeBencode, &str> {
+    let slice = input.get(start..end);
+    match slice {
+        Some(x) => return Ok(DeBencode::Str(x.to_string())),
+        None => return Err("could not slice the string correctly in parse_string")
+    }
+}
+
+pub struct Locations {
+    start: usize,
+    end: usize
+}
+impl Locations{
+    fn new(x: usize, y:usize)->Locations {
+        Locations{start:x, end:y}
+    }
+}
+fn find_all_numbers(input: &str) -> Result<Vec<Locations>, &str>{
+    let num_start = Regex::new(r"i[\-\d]").unwrap();
+    let num_end = Regex::new(r"\de").unwrap();
+
+    let starting_indicies: Vec<_> = num_start.find_iter(&input).map(|x| x.start()+1).collect();
+    let ending_indicies: Vec<_> = num_end.find_iter(&input).map(|x| x.end()-1).collect();
+
+    if starting_indicies.len() != starting_indicies.len() {
+        return Err("the starting indicies and the endinging indicies did not have the same length while number parsing");
+    }
+    
+    //TODO: preallocate this bad boy
+    let mut locations: Vec<Locations> = Vec::new();
+    for i in 0..starting_indicies.len(){
+        locations.push(Locations::new(starting_indicies[i],ending_indicies[i]));
+    }
+
+    Ok(locations)
+}
+fn parse_number(input: &str, start: usize, end:usize) -> Result<DeBencode, &str> {
+    
+    let str_to_parse = input.get(start..end);
+    let num = match str_to_parse {
+        Some(x) => x,
+        None => return Err("encountered an error in parse_number while slicing the string")
+    };
+    match num.parse::<i32>(){
+        Ok(x) => Ok(DeBencode::Num(x)),
+        Err(x) => Err("was not able to correctly parse the number in parse_number")
     }
 
 }
+#[derive(Debug)]
+struct Collections_Data {
+    dict_locations: Vec<(i32, i32)>,
+    list_locations: Vec<(i32, i32)>
+}
+impl Collections_Data {
+    fn new(dicts: Vec<(i32, i32)>, lists: Vec<(i32, i32)>) -> Collections_Data{
+        return Collections_Data{dict_locations: dicts, list_locations: lists}
+    }
+    fn is_empty(&self) -> bool {
+        return (self.dict_locations.len()>0) || (self.list_locations.len() >0)
+    }
+}
 
-
-
-pub fn general(input: &str) -> Result<DeBencode, &str> {
-
+fn parse_for_lists_and_dicts(input: &str) -> Collections_Data {
 	let dict_start = Regex::new(r"d[l\di]").unwrap();
 
 	let lis_start = Regex::new(r"l[idl\d]").unwrap();
@@ -142,23 +241,12 @@ pub fn general(input: &str) -> Result<DeBencode, &str> {
         panic!{"number of dictionary starts ({:?}) did not equal dictionary ends ({:?}) for phrase {}",dict_starts, collection_ends, input}
     }
 
-    println!{"all dicts {:?}", dict_starts}
-    println!{"all lists {:?}" ,list_starts}
-    println!{"all of collections: {:?}", collection_ends}
+    let decision = dict_starts.len().cmp(&list_starts.len());
+    let (primary_iter, secondary_iter, order) = match decision{
+        Ordering::Less => (&list_starts, &dict_starts, FlatBencode::Lis),
+        _ =>              (&dict_starts, &list_starts, FlatBencode::Dic)
+    };
 
-    // this may be error prone
-    let primary_iter = &list_starts;
-    let secondary_iter = &dict_starts;
-    let order = FlatBencode::Lis;
-    if dict_starts.len() > list_starts.len(){
-        println!{"primary is dict"}
-        let primary_iter = &dict_starts;
-        let secondary_iter = &list_starts;
-        let order = FlatBencode::Dic;
-    }
-    else{
-        println!{"primary is lists"}
-    }
     
     // TODO: Preallocate these 
     let mut final_prim: Vec<(i32, i32)> = Vec::new();
@@ -168,8 +256,6 @@ pub fn general(input: &str) -> Result<DeBencode, &str> {
     let mut sec_i = 0;
 
     for i in 0..collection_ends.len(){
-        println!{"\n\n"}
-        // println!{"here"}
 
         let decision_prim = prim_i.cmp(&primary_iter.len());
         let prim = match decision_prim{
@@ -179,24 +265,17 @@ pub fn general(input: &str) -> Result<DeBencode, &str> {
 
         let decision_sec = sec_i.cmp(&secondary_iter.len());
         let sec = match decision_sec {
-            (Ordering::Less) => secondary_iter[sec_i],
+            Ordering::Less => secondary_iter[sec_i],
             _ => -1i32,
         };
-        println!{"made it this far"}
         let ender = collection_ends[prim_i+sec_i];
-        println!{"over ehre"}
 
         if sec_i < secondary_iter.len(){
-            println!{"assigning a new value to sec"}
             let sec =  secondary_iter[sec_i];
         }
-        else{
-            println!{"we are keeping sec as 0 {} {}", sec_i, secondary_iter.len()}
-        }
 
-        println!{"primary is {} secondary is {} ender is {}", prim, sec, ender}
 
-        if (ender > sec)&& (sec> prim) {
+        if (ender > sec) && (sec> prim) {
             final_sec.push((sec,ender));
             sec_i +=1
         }
@@ -204,61 +283,13 @@ pub fn general(input: &str) -> Result<DeBencode, &str> {
             final_prim.push((prim,ender));
             prim_i +=1;
         }
-        panic!{"conditions not met for bencode :::{}:::", input}
+        else{panic!{"conditions not met for bencode :::{}:::\nender {}\nsec {}\nprim {}\n", input, ender, sec, prim}}
 
-        // // if the distacne between the end and the secondary is smaller 
-        // if sec < 0{
-        //     final_prim.push((prim,ender));
-        //     prim_i +=1;
-        // }
-        // else if prim < 0{
-        //     final_sec.push((sec, ender));
-        //     sec_i+=1
-        // }
-        // else if (ender-sec) <0 {
-        //     println!{"first condition"}
-        //     final_prim.push((prim,ender));
-        //     prim_i +=1;
-        // }
-        // else if (ender-prim) <0 {
-        //     println!{"second condition {}", ender-prim}
-        //     final_sec.push((sec, ender));
-        //     sec_i+=1
-        // }
-        // else if (ender-prim) < (ender-sec){
-        //     println!{"3rd condition"}
-        //     final_prim.push((prim, ender));
-        //     prim_i +=1;
-        // }
-        // else if (ender-sec) < (ender-prim){
-        //     println!{"4th condition"}
-        //     final_sec.push((prim, ender));
-        //     sec_i+=1;
-        // }
-        // else {panic!{"conditions not met for bencode :::{}:::", input}}
-
-    println!{"END OF LOOP:"}
-    println!{"primary {:?}", final_prim}
-    println!{"secondary {:?}", final_sec}
     }
-    
-
-    // let num_start = Regex::new(r"i[\-\d]").unwrap();
-    // let num_end = Regex::new(r"\de").unwrap();
-
-    // let str_start = Regex::new(r"\d:").unwrap();
-
-    // let lis_start = Regex::new(r"l[idl\d]").unwrap();
-	// let lis_end = Regex::new(r"ee|\d:[[:alpha:]]+e^[i\dd]").unwrap();
-
-    // let dict_starts = 
-
-    
-
-
-    
-    return Ok(DeBencode::Num(23))
-
+    match order {
+        FlatBencode::Lis => return Collections_Data::new(final_sec, final_prim),
+        _ => return Collections_Data::new(final_prim, final_sec),
+    }
 }
 
 // D<contents>E
