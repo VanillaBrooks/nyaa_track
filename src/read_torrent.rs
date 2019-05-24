@@ -10,6 +10,9 @@ use serde_bencode::de;
 
 use std::io::{self, Read};
 
+use crypto;
+use crypto::digest::Digest;
+
 
 #[derive(Debug, Deserialize)]
 pub struct Node(String, i64);
@@ -42,14 +45,22 @@ pub struct Info {
     #[serde(default)]
     #[serde(rename="root hash")]
     root_hash: Option<String>,
+    #[serde(default)]
+    info_hash: Option<String>,
+}
+impl Info{
+    fn info_hash(&self) -> Result<String, String> {
+        let mut hasher = crypto::sha1::Sha1::new();
+        hasher.input_str("test");
+        Ok(hasher.result_str())
+    }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Torrent {
+    info: Info,
     #[serde(default)]
-    info: Option<Info>,
-    #[serde(default)]
-    announce: Option<String>,
+    pub announce: Option<String>,
     #[serde(default)]
     nodes: Option<Vec<Node>>,
     #[serde(default)]
@@ -67,13 +78,6 @@ pub struct Torrent {
     #[serde(default)]
     #[serde(rename="created by")]
     created_by: Option<String>,
-
-    #[serde(default)]
-    complete: Option<i64>,
-    #[serde(default)]
-    incomplete:Option<i64>,
-    #[serde(default)]
-    downloaded: Option<i64>,
 }
 
 
@@ -85,8 +89,6 @@ impl Torrent{
         let mut buffer = Vec::new();
         let mut file = std::fs::File::open(filename).unwrap();
         file.read_to_end(&mut buffer);
-        println!{"the buffer is:"}
-        dbg!{&buffer};
         Torrent::new_bytes(&buffer)
     }
 }

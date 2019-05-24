@@ -1,22 +1,55 @@
-// def hex_to_char_dict():
-// 	letters = "ABCDEF"
-// 	hex = []
-// 	for k in range(2,8):
-// 		new = [str(i) for i in range(k*10,(k+1)*10)] + [str(k) + letters[j] for j in range(6)]
-// 		hex += new
-// 	hex.pop(-1)
-// 	chars = ' ! " # $ % & \' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~'.split(' ')
-// 	return {hex[i]: chars[i] for i in range(len(hex))}
-
 use hashbrown::HashMap;
+use serde_urlencoded::{self, de, ser};
+use serde_derive::{self, Serialize, Deserialize};
 
-use lazy_static;
 
+// generate indexes to use
+fn generate_indexes() -> Vec<usize> {
+    let mut ret : Vec<usize> = Vec::with_capacity(20);
+    for i in 0..40 {
+        if i % 2 == 0{
+            ret.push(i);
+        }
+    }
+    return ret;
 
-// lazy_static!{
-// 		static ref hm: HashMap<String, String> = hex_to_char();
-// 	}
-pub fn hex_to_char() -> HashMap<String, String> {
+    (0..40).iter().step(2).collect();
+}
+
+pub fn hex_to_char(input: &str) -> String {
+    let input = input.to_uppercase();
+    let mut input_clone = String::with_capacity(20);
+
+    lazy_static!{
+        static ref hex : HashMap<String, String> = _hex_to_char();
+        static ref percent_encode: HashMap<String, String> = reserved_characters();
+        static ref indexes : Vec<usize> = generate_indexes();
+    }
+
+    for k in 0..20{
+        let i = &indexes[k];
+        println!{"{}", i}
+        let chars = input.get(*i..*i+2).unwrap();
+
+        match hex.get(chars) {
+            Some(x) => {
+                match percent_encode.get(x) {
+                    Some(escape_char) => input_clone.push_str(&escape_char),
+                    None => input_clone.push_str(x)
+                }
+            },
+            None => {
+                input_clone.push_str("%");
+                input_clone.push_str(chars);
+            }
+        }
+        dbg!{&input_clone};
+
+    }
+
+    return input_clone
+}
+pub fn _hex_to_char() -> HashMap<String, String> {
     let mut chars: Vec<&str> = "  ! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~".split_ascii_whitespace().collect();
     let letters = ["A", "B", "C", "D", "E", "F"];
     let mut hex: Vec<String> = Vec::new();
@@ -44,6 +77,34 @@ pub fn hex_to_char() -> HashMap<String, String> {
     return hm
 }
 
+fn reserved_characters() -> HashMap<String, String> {
+    let mut keys: Vec<&str>= "! # $ & ' ( ) * + , / : ; = ? @ [ ]".split_ascii_whitespace().collect();
+    let mut values: Vec<&str> = "%21 %23 %24 %26 %27 %28 %29 %2A %2B %2C %2F %3A %3B %3D %3F %40 %5B %5D".split_ascii_whitespace().collect();
+    println!{"{} {} ", keys.len(), values.len()}
+
+    let mut hm: HashMap<String, String> = HashMap::new();
+    for _ in 0..keys.len(){
+        hm.insert(keys.remove(0).to_string(), values.remove(0).to_string());
+    }
+    return hm;
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Url {
+	info_hash: String,
+	peer_id: String,
+	port: u32,
+	uploaded: u32,
+	downloaded: u32,
+	numwant: u32,
+	compact: u32
+}
+
+impl Url {
+    pub fn new(info_hash: String, peer_id: String) -> Url {
+        Url{info_hash:info_hash, peer_id:peer_id, port: 9973, uploaded:0, downloaded:0,numwant:0,compact: 1}
+    }
+}
 
 // {'20': '',
 //  '21': '!',

@@ -3,16 +3,15 @@ use reqwest;
 use rss;
 use std::fs;
 use std::io::prelude::*;
-
 use crate::read_torrent::Torrent;
 
 #[derive(Debug)]
 pub enum Error{
 	IO(std::io::Error),
 	Reqwest(reqwest::Error),
-	rss(rss::Error),
+	Rss(RssErrors),
 	UrlError,
-	torrent(serde_bencode::Error)
+	torrent(TorrentErrors)
 }
 impl From<reqwest::Error> for Error{
 	fn from(error: reqwest::Error) -> Error{
@@ -25,14 +24,25 @@ impl From<std::io::Error> for Error{
 	}
 }
 impl From<rss::Error> for Error {
-	fn from(error:rss::Error) -> Error{
-		return Error::rss(error)
+	fn from(error: rss::Error) -> Error{
+		return Error::Rss(RssErrors::RawRssError(error))
 	}
 }
 impl From<serde_bencode::Error> for Error {
 	fn from(error: serde_bencode::Error) ->Error {
-		return Error::torrent(error)
+		return Error::torrent(TorrentErrors::SerdeError(error))
 	}
+}
+
+#[derive(Debug)]
+enum RssErrors {
+	RawRssError(rss::Error),
+	InfoHashFetch(&'static str)
+}
+#[derive(Debug)]
+enum TorrentErrors {
+	NoAnnounceUrl,
+	SerdeError(serde_bencode::Error)
 }
 
 pub fn get_xml(url: &str) -> Result<(), Error> {
@@ -51,18 +61,32 @@ pub fn get_xml(url: &str) -> Result<(), Error> {
 	// file.write_all(xml_data.as_bytes());
 	
 
-	let mut file = fs::File::open(path)?;
+	let file = fs::File::open(path)?;
 	let channel = rss::Channel::read_from(std::io::BufReader::new(file))?;
 	let items = channel.items();
 
 
-	let mut all_data = Vec::with_capacity(items.len());
+	let mut all_data: Vec<AnnounceComponents>= Vec::with_capacity(items.len());
 
 	for i in items{
+		dbg!{nyaa_hash_from_xml(&i)};
+		// let saer: i32 = i.extensions().get("nyaa").unwrap().get("infoHash").unwrap()[0].;
 
-		//TODO: better handling for bad requests
+		// TODO: better handling for bad requests
 		match download_torrent(i.link()){
-			Ok(x) => all_data.push(x),
+			Ok(x) => {
+
+				match nyaa_hash_from_xml(&i) {
+					Ok(info_hash) => {
+						match AnnounceComponents::new(x.announce, info_hash) {
+							Ok(announce)=> all_data.push(announce),
+							Err(x) => println!{"there was an error with the annouce struct: {:?}", x}
+						}
+						
+					},
+					Err(x) => println!{"infohash was no ok : {:?}", x}
+				}
+			},
 			Err(x) => println!{"there was an error with torrent link: {:?}", x}
 		}
 		break;
@@ -72,6 +96,54 @@ pub fn get_xml(url: &str) -> Result<(), Error> {
 	return Ok(())
 }
 
+#[derive(Debug)]
+pub struct AnnounceComponents <'a> {
+	url : String,
+	info_hash: &'a str
+}
+impl <'a> AnnounceComponents<'a> {
+	pub fn new (url: Option<String>, hash: &'a str) -> Result<AnnounceComponents, Error> {
+		if url.is_some(){
+			let mut url = url.unwrap();
+			url.push_str("?info_hash={}&peer_id={}&port={}&uploaded=0&downloaded=0&numwant=0&compact=1");
+			Ok(AnnounceComponents {url: url, info_hash: hash})
+		}
+		else{
+			Err(Error::torrent(TorrentErrors::NoAnnounceUrl))
+		}
+	}
+	pub fn announce(&self) -> () {
+		println!{"{}", self.url}
+	}
+}
+
+
+fn nyaa_hash_from_xml<'a> (item: &'a rss::Item) -> Result<&'a str, Error>{
+	let ext = item.extensions();
+
+	match ext.get("nyaa"){
+		Some(nyaa) => {
+			match nyaa.get("infoHash") {
+				Some(extension_vec) => {
+					if extension_vec.len() ==1{
+						let ext_index = &extension_vec[0];
+						match ext_index.value() {
+							Some(infohash) => {
+								return Ok(infohash)
+							}
+							None => Err(Error::Rss(RssErrors::InfoHashFetch("No value field")))
+						}
+					}
+					else {
+						Err(Error::Rss(RssErrors::InfoHashFetch("!= one item in the vector")))
+					}
+				}
+				None => Err(Error::Rss(RssErrors::InfoHashFetch("no field infohash")))
+			}
+		}
+		None => Err(Error::Rss(RssErrors::InfoHashFetch("No field nyaa")))
+	}
+}
 
 
 // TODO: configure client pooling
@@ -140,11 +212,6 @@ pub fn compare_files(f1: &str, f2: &str) -> () {
         }
         else{
             println!{"{} {} {}", i, buffer1[i], buffer2[i]}
-
         }
-
-
-    }
-
-
+    } //for
 }
