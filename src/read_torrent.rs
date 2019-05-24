@@ -12,10 +12,10 @@ use std::io::{self, Read};
 
 
 #[derive(Debug, Deserialize)]
-struct Node(String, i64);
+pub struct Node(String, i64);
 
 #[derive(Debug, Deserialize)]
-struct File {
+pub struct File {
     path: Vec<String>,
     length: i64,
     #[serde(default)]
@@ -23,9 +23,10 @@ struct File {
 }
 
 #[derive(Debug, Deserialize)]
-struct Info {
+pub struct Info {
     name: String,
-    pieces: ByteBuf,
+    // #[serde(default)]
+    // pieces: ByteBuf,
     #[serde(rename="piece length")]
     piece_length: i64,
     #[serde(default)]
@@ -44,8 +45,9 @@ struct Info {
 }
 
 #[derive(Debug, Deserialize)]
-struct Torrent {
-    info: Info,
+pub struct Torrent {
+    #[serde(default)]
+    info: Option<Info>,
     #[serde(default)]
     announce: Option<String>,
     #[serde(default)]
@@ -65,48 +67,26 @@ struct Torrent {
     #[serde(default)]
     #[serde(rename="created by")]
     created_by: Option<String>,
+
+    #[serde(default)]
+    complete: Option<i64>,
+    #[serde(default)]
+    incomplete:Option<i64>,
+    #[serde(default)]
+    downloaded: Option<i64>,
 }
 
-fn render_torrent(torrent: &Torrent) {
-    println!("name:\t\t{}", torrent.info.name);
-    println!("announce:\t{:?}", torrent.announce);
-    println!("nodes:\t\t{:?}", torrent.nodes);
-    if let &Some(ref al) = &torrent.announce_list {
-        for a in al {
-            println!("announce list:\t{}", a[0]);
-        }
-    }
-    println!("httpseeds:\t{:?}", torrent.httpseeds);
-    println!("creation date:\t{:?}", torrent.creation_date);
-    println!("comment:\t{:?}", torrent.comment);
-    println!("created by:\t{:?}", torrent.created_by);
-    println!("encoding:\t{:?}", torrent.encoding);
-    println!("piece length:\t{:?}", torrent.info.piece_length);
-    println!("private:\t{:?}", torrent.info.private);
-    println!("root hash:\t{:?}", torrent.info.root_hash);
-    println!("md5sum:\t\t{:?}", torrent.info.md5sum);
-    println!("path:\t\t{:?}", torrent.info.path);
-    if let &Some(ref files) = &torrent.info.files {
-        for f in files {
-            println!("file path:\t{:?}", f.path);
-            println!("file length:\t{}", f.length);
-            println!("file md5sum:\t{:?}", f.md5sum);
-        }
-    }
-}
 
-fn main() {
-    let stdin = io::stdin();
-    let mut buffer = Vec::new();
-    let mut handle = stdin.lock();
-    match handle.read_to_end(&mut buffer) {
-        Ok(_) => {
-            match de::from_bytes::<Torrent>(&buffer) {
-                Ok(t) => render_torrent(&t),
-                Err(e) => println!("ERROR: {:?}", e),
-            }
-        }
-        Err(e) => println!("ERROR: {:?}", e),
-
+impl Torrent{
+    pub fn new_bytes(input_bytes: &Vec<u8>) ->Result<Torrent, serde_bencode::Error> {
+        de::from_bytes::<Torrent>(&input_bytes)
+    }
+    pub fn new_file(filename: &str) -> Result<Torrent, serde_bencode::Error> {
+        let mut buffer = Vec::new();
+        let mut file = std::fs::File::open(filename).unwrap();
+        file.read_to_end(&mut buffer);
+        println!{"the buffer is:"}
+        dbg!{&buffer};
+        Torrent::new_bytes(&buffer)
     }
 }
