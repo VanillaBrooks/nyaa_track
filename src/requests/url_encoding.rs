@@ -2,20 +2,10 @@ use hashbrown::HashMap;
 use serde_urlencoded::{self, de, ser};
 use serde_derive::{self, Serialize, Deserialize};
 
+#[macro_use]
+use lazy_static;
 
-// generate indexes to use
-fn generate_indexes() -> Vec<usize> {
-    let mut ret : Vec<usize> = Vec::with_capacity(20);
-    for i in 0..40 {
-        if i % 2 == 0{
-            ret.push(i);
-        }
-    }
-    return ret;
-
-    (0..40).iter().step(2).collect();
-}
-
+// expects string to be lowercase
 pub fn hex_to_char(input: &str) -> String {
     let input = input.to_uppercase();
     let mut input_clone = String::with_capacity(20);
@@ -23,35 +13,47 @@ pub fn hex_to_char(input: &str) -> String {
     lazy_static!{
         static ref hex : HashMap<String, String> = _hex_to_char();
         static ref percent_encode: HashMap<String, String> = reserved_characters();
-        static ref indexes : Vec<usize> = generate_indexes();
+        static ref indexes :  Vec<usize> = (0..40).step_by(2).collect();
     }
 
-    for k in 0..20{
-        let i = &indexes[k];
-        println!{"{}", i}
+    for i in indexes.iter(){
         let chars = input.get(*i..*i+2).unwrap();
+        
+        println!{"chars are {}", chars}
 
         match hex.get(chars) {
-            Some(x) => {
+            // the two character combination matches something in hex
+            Some(x) => { 
+                // println!{"hex encoding found for character {}", x}
+                //get escape character
                 match percent_encode.get(x) {
-                    Some(escape_char) => input_clone.push_str(&escape_char),
-                    None => input_clone.push_str(x)
+                    // it has an escape character, push the escaped version
+                    Some(escape_char) => {
+                        // println!{"escape character found {}", escape_char}
+                        input_clone.push_str(&escape_char)
+                    },
+                    // no escaped version, we can push the original
+                    None => {
+                        // println!{"no escape character found for {}",x};
+                        input_clone.push_str(x);
+                    }
                 }
             },
+            // The hex combination does not mean anything, push %<chars>
             None => {
+                // println!{"no hex conversion for that character"}
                 input_clone.push_str("%");
                 input_clone.push_str(chars);
             }
         }
         dbg!{&input_clone};
-
     }
 
     return input_clone
 }
 pub fn _hex_to_char() -> HashMap<String, String> {
-    let mut chars: Vec<&str> = "  ! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~".split_ascii_whitespace().collect();
-    let letters = ["A", "B", "C", "D", "E", "F"];
+    let mut chars: Vec<&str> = "! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~".split_ascii_whitespace().collect();
+    let letters = ["a", "b", "c", "d", "e", "f"];
     let mut hex: Vec<String> = Vec::new();
     chars.insert(0, " ");
 
@@ -78,8 +80,10 @@ pub fn _hex_to_char() -> HashMap<String, String> {
 }
 
 fn reserved_characters() -> HashMap<String, String> {
-    let mut keys: Vec<&str>= "! # $ & ' ( ) * + , / : ; = ? @ [ ]".split_ascii_whitespace().collect();
-    let mut values: Vec<&str> = "%21 %23 %24 %26 %27 %28 %29 %2A %2B %2C %2F %3A %3B %3D %3F %40 %5B %5D".split_ascii_whitespace().collect();
+    let mut keys: Vec<&str>= "! \" # $ % & ' ( ) * + , / : ; = ? @ [ ] < > - . ^ _ ` { | } ~".split_ascii_whitespace().collect();
+    let mut values: Vec<&str> = "%20 %21 %22 %23 %24 %25 %26 %27 %28 %29 %2A \
+    %2B %2C %2F %3A %3B %3D %3F %40 %5B %5D %3C %3E %2D %2E %5E %5F %60 %7B %7C %7D %7E".split_ascii_whitespace().collect();
+    keys.insert(0, " ");
     println!{"{} {} ", keys.len(), values.len()}
 
     let mut hm: HashMap<String, String> = HashMap::new();
@@ -102,11 +106,13 @@ pub struct Url {
 
 impl Url {
     pub fn new(info_hash: String, peer_id: String) -> Url {
-        Url{info_hash:info_hash, peer_id:peer_id, port: 9973, uploaded:0, downloaded:0,numwant:0,compact: 1}
+        let url_hash     = hex_to_char(&info_hash).to_ascii_lowercase();
+        let peer_id_hash = hex_to_char(&peer_id).to_ascii_lowercase();
+        Url{info_hash: url_hash, peer_id: peer_id_hash, port: 9973, uploaded:0, downloaded:0,numwant:0,compact: 1}
     }
 }
 
-// {'20': '',
+// {'20': ' ',
 //  '21': '!',
 //  '22': '"',
 //  '23': '#',

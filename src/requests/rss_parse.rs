@@ -4,6 +4,7 @@ use rss;
 use std::fs;
 use std::io::prelude::*;
 use crate::read_torrent::Torrent;
+use super::url_encoding;
 
 #[derive(Debug)]
 pub enum Error{
@@ -11,7 +12,8 @@ pub enum Error{
 	Reqwest(reqwest::Error),
 	Rss(RssErrors),
 	UrlError,
-	torrent(TorrentErrors)
+	torrent(TorrentErrors),
+	Announce(AnnounceErorrs)
 }
 impl From<reqwest::Error> for Error{
 	fn from(error: reqwest::Error) -> Error{
@@ -33,14 +35,23 @@ impl From<serde_bencode::Error> for Error {
 		return Error::torrent(TorrentErrors::SerdeError(error))
 	}
 }
+impl From<serde_urlencoded::ser::Error> for Error {
+	fn from(error: serde_urlencoded::ser::Error) -> Error {
+		return Error::Announce(AnnounceErorrs::SerdeError(error))
+	}
+}
+#[derive(Debug)]
+pub enum AnnounceErorrs{
+	SerdeError(serde_urlencoded::ser::Error)
+}
 
 #[derive(Debug)]
-enum RssErrors {
+pub enum RssErrors {
 	RawRssError(rss::Error),
 	InfoHashFetch(&'static str)
 }
 #[derive(Debug)]
-enum TorrentErrors {
+pub enum TorrentErrors {
 	NoAnnounceUrl,
 	SerdeError(serde_bencode::Error)
 }
@@ -98,26 +109,49 @@ pub fn get_xml(url: &str) -> Result<(), Error> {
 
 #[derive(Debug)]
 pub struct AnnounceComponents <'a> {
-	url : String,
-	info_hash: &'a str
+	pub url : String,
+	pub info_hash: &'a str,
+	announce_url: Option<String>
 }
+
+// TODO: fix unwrap
 impl <'a> AnnounceComponents<'a> {
 	pub fn new (url: Option<String>, hash: &'a str) -> Result<AnnounceComponents, Error> {
 		if url.is_some(){
-			let mut url = url.unwrap();
-			url.push_str("?info_hash={}&peer_id={}&port={}&uploaded=0&downloaded=0&numwant=0&compact=1");
-			Ok(AnnounceComponents {url: url, info_hash: hash})
+			let url = url.unwrap();
+			Ok(AnnounceComponents {url: url, info_hash: hash, announce_url: None})
 		}
 		else{
 			Err(Error::torrent(TorrentErrors::NoAnnounceUrl))
 		}
 	}
-	pub fn announce(&self) -> () {
-		println!{"{}", self.url}
+	pub fn announce(&mut self) -> Result<String, Error> {
+		if self.announce_url.is_none() {
+			let url = url_encoding::Url::new(self.info_hash.to_string(), self.info_hash.to_string());
+			let url = serde_urlencoded::to_string(url)?;
+			let mut url_copy = self.url.clone();
+			url_copy.push_str("?");
+			url_copy.push_str(&url);
+			self.announce_url = Some(url_copy);
+		}
+		match &self.announce_url {
+			Some(url) => {
+				println!{"the url being queried is"};
+				dbg!{&url};
+				let response = reqwest::get(url);
+				dbg!{response};	
+
+			}
+			None => ()
+		}
+		// let announce_url = &self.announce_url.unwrap();
+		
+
+		return Ok("".to_string())
 	}
 }
 
-
+// do this since ? does not work w/ Option<T>
 fn nyaa_hash_from_xml<'a> (item: &'a rss::Item) -> Result<&'a str, Error>{
 	let ext = item.extensions();
 
@@ -147,6 +181,7 @@ fn nyaa_hash_from_xml<'a> (item: &'a rss::Item) -> Result<&'a str, Error>{
 
 
 // TODO: configure client pooling
+// probably want to turn this thing into a struct
 pub fn download_torrent(url: Option<&str>) -> Result<Torrent, Error> {
 	dbg!{url};
 	if url.is_some(){
