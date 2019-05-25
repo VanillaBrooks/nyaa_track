@@ -3,156 +3,175 @@ use reqwest;
 use rss;
 use std::fs;
 use std::io::prelude::*;
-use crate::read_torrent::Torrent;
+use crate::read_torrent::{Torrent, Announce};
 use super::url_encoding;
 
-#[derive(Debug)]
-pub enum Error{
-	IO(std::io::Error),
-	Reqwest(reqwest::Error),
-	Rss(RssErrors),
-	UrlError,
-	torrent(TorrentErrors),
-	Announce(AnnounceErorrs)
-}
-impl From<reqwest::Error> for Error{
-	fn from(error: reqwest::Error) -> Error{
-		return Error::Reqwest(error)
-	}
-}
-impl From<std::io::Error> for Error{
-	fn from(error: std::io::Error) -> Error{
-		return Error::IO(error)
-	}
-}
-impl From<rss::Error> for Error {
-	fn from(error: rss::Error) -> Error{
-		return Error::Rss(RssErrors::RawRssError(error))
-	}
-}
-impl From<serde_bencode::Error> for Error {
-	fn from(error: serde_bencode::Error) ->Error {
-		return Error::torrent(TorrentErrors::SerdeError(error))
-	}
-}
-impl From<serde_urlencoded::ser::Error> for Error {
-	fn from(error: serde_urlencoded::ser::Error) -> Error {
-		return Error::Announce(AnnounceErorrs::SerdeError(error))
-	}
-}
-#[derive(Debug)]
-pub enum AnnounceErorrs{
-	SerdeError(serde_urlencoded::ser::Error)
-}
+use super::super::utils;
 
-#[derive(Debug)]
-pub enum RssErrors {
-	RawRssError(rss::Error),
-	InfoHashFetch(&'static str)
-}
-#[derive(Debug)]
-pub enum TorrentErrors {
-	NoAnnounceUrl,
-	SerdeError(serde_bencode::Error)
-}
+use super::super::error::*;
+// use super::super::error::{Error, AnnounceErrors, RssErrors, TorrentErrors };
 
-pub fn get_xml(url: &str) -> Result<(), Error> {
+// download xml data from a url as well as their associated torrents
+// return a vector of structs required to make announcements
+// will only Error if the provided url is incorrect
+pub fn get_xml(url: &str) -> Result<Vec<AnnounceComponents>, Error> {
 
 	//TODO: move this to a lazy_static!{}
 	let temp_folder : &'static str = r"C:\Users\Brooks\github\nyaa_tracker\temp";
-	let tmp = fs::create_dir(temp_folder);	
+	fs::create_dir(temp_folder);
 
-	let path : &'static str = r"C:\Users\Brooks\github\nyaa_tracker\temp\temp.xml";
+	let mut path: String = temp_folder.to_string();
+	path.push_str(r"\");
+	path.push_str(&utils::get_unix_time().to_string());
+	path.push_str(".xml");
 
-	// let mut req = reqwest::get(url)?;
-	// let xml_data = reqwest::get(url)?.text()?;
+	let mut req = reqwest::get(url)?;
+	let xml_data = reqwest::get(url)?.text()?;
 
 
-	// let mut file = fs::File::create(path)?;
-	// file.write_all(xml_data.as_bytes());
+	let mut file = fs::File::create(&path)?;
+	file.write_all(xml_data.as_bytes());
 	
 
-	let file = fs::File::open(path)?;
+	let file = fs::File::open(&path)?;
 	let channel = rss::Channel::read_from(std::io::BufReader::new(file))?;
-	let items = channel.items();
+	let mut items = channel.items().to_vec();
+	
 
 
-	let mut all_data: Vec<AnnounceComponents>= Vec::with_capacity(items.len());
+	let mut good_data: Vec<AnnounceComponents>= Vec::with_capacity(items.len());
+	let mut error_data: Vec<Error> = Vec::new();
 
-	for i in items{
-		dbg!{nyaa_hash_from_xml(&i)};
-		// let saer: i32 = i.extensions().get("nyaa").unwrap().get("infoHash").unwrap()[0].;
+	for i in 0..items.len() {
+		println!{"{}", i}
+		let current_item = items.remove(0);
+		// dbg!{nyaa_hash_from_xml(current_item)};
+
 
 		// TODO: better handling for bad requests
-		match download_torrent(i.link()){
+		match utils::download_torrent(current_item.link()){
 			Ok(x) => {
 
-				match nyaa_hash_from_xml(&i) {
+				match nyaa_hash_from_xml(current_item) {
 					Ok(info_hash) => {
 						match AnnounceComponents::new(x.announce, info_hash) {
-							Ok(announce)=> all_data.push(announce),
-							Err(x) => println!{"there was an error with the annouce struct: {:?}", x}
+							Ok(announce)=> good_data.push(announce),
+							Err(x) => {
+								println!{"there was an error with the announce struct: {:?}", x};
+								error_data.push(x);
+							}	
 						}
 						
 					},
-					Err(x) => println!{"infohash was no ok : {:?}", x}
+					Err(error) => {
+						println!{"infohash was no ok : {:?}", error};
+						error_data.push(error);
+					}
 				}
 			},
-			Err(x) => println!{"there was an error with torrent link: {:?}", x}
-		}
-		break;
 
+			//TODO: handle this error better
+			Err(x) => {
+				println!{"there was an error with torrent link: {:?}", x};
+				error_data.push(x);
+			}
+		}
 	}
-	dbg!{all_data};
-	return Ok(())
+	println!{"all data: "}
+	dbg!{&good_data};
+	dbg!{error_data};
+	return Ok(good_data)
 }
 
 #[derive(Debug)]
-pub struct AnnounceComponents <'a> {
+pub struct AnnounceComponents {
 	pub url : String,
-	pub info_hash: &'a str,
-	announce_url: Option<String>
+	pub info_hash: String,
+	announce_url: Option<String>,
+	interval: Option<u64>,
+	last_announce: Option<std::time::Instant>
 }
 
 // TODO: fix unwrap
-impl <'a> AnnounceComponents<'a> {
-	pub fn new (url: Option<String>, hash: &'a str) -> Result<AnnounceComponents, Error> {
+impl AnnounceComponents {
+	pub fn new (url: Option<String>, hash: String) -> Result<AnnounceComponents, Error> {
+		// i think this .is_some() is not needed since the outer match
 		if url.is_some(){
-			let url = url.unwrap();
-			Ok(AnnounceComponents {url: url, info_hash: hash, announce_url: None})
+
+			Ok(AnnounceComponents {url: url.unwrap(),
+								info_hash: hash, 
+								announce_url: None,
+								interval: None,
+								last_announce: None})
 		}
 		else{
-			Err(Error::torrent(TorrentErrors::NoAnnounceUrl))
+			Err(Error::Torrent(TorrentErrors::NoAnnounceUrl(hash)))
 		}
 	}
-	pub fn announce(&mut self) -> Result<String, Error> {
+
+
+	pub fn announce(&mut self) -> Result<Announce, Error> {
 		if self.announce_url.is_none() {
 			let url = url_encoding::Url::new(self.info_hash.to_string(), self.info_hash.to_string());
-			let url = serde_urlencoded::to_string(url)?;
+			let url = url.serialize();
+
 			let mut url_copy = self.url.clone();
 			url_copy.push_str("?");
 			url_copy.push_str(&url);
+
 			self.announce_url = Some(url_copy);
 		}
+
 		match &self.announce_url {
 			Some(url) => {
-				println!{"the url being queried is"};
-				dbg!{&url};
-				let response = reqwest::get(url);
-				dbg!{response};	
+				
+				// make sure that the tracker is going to let us make an announce cal
+				if self.last_announce.is_some() {
+					let last = self.last_announce.unwrap().elapsed().as_secs();
+					let interval = self.interval.unwrap();
+					if last < interval {
+						return Err(
+							Error::Announce(
+								AnnounceErrors::AnnounceNotReady(interval - last)
+							))
+					}
+				}
 
+				// make a get request to the tracker
+				match reqwest::get(url) {
+					Ok(mut response) => {
+
+						let mut buffer: Vec<u8> = Vec::with_capacity(150);
+						response.read_to_end(&mut buffer)?;
+						
+						let parse = Announce::new_bytes(&buffer)?;
+						self.interval = Some(parse.interval);
+						self.last_announce = Some(std::time::Instant::now());
+
+						return Ok(parse);
+						
+					},
+
+					// there was a problem with the request (most likely the hash)
+					Err(x) => {
+						//TODO : log all information on the struct about this error here
+						return Err(
+							Error::Announce(
+								AnnounceErrors::AnnounceUrlError(url.clone())
+								)
+							)
+					}
+				}
 			}
-			None => ()
+			// This error should literally never happpen
+			// TODO: Log errors here
+			None => Err(Error::Announce(AnnounceErrors::AnnounceUrlNone))
 		}
-		// let announce_url = &self.announce_url.unwrap();
-		
-
-		return Ok("".to_string())
 	}
 }
 
 // do this since ? does not work w/ Option<T>
-fn nyaa_hash_from_xml<'a> (item: &'a rss::Item) -> Result<&'a str, Error>{
+fn nyaa_hash_from_xml(item: rss::Item) -> Result<String, Error>{
 	let ext = item.extensions();
 
 	match ext.get("nyaa"){
@@ -163,7 +182,7 @@ fn nyaa_hash_from_xml<'a> (item: &'a rss::Item) -> Result<&'a str, Error>{
 						let ext_index = &extension_vec[0];
 						match ext_index.value() {
 							Some(infohash) => {
-								return Ok(infohash)
+								return Ok(infohash.to_string())
 							}
 							None => Err(Error::Rss(RssErrors::InfoHashFetch("No value field")))
 						}
@@ -180,73 +199,3 @@ fn nyaa_hash_from_xml<'a> (item: &'a rss::Item) -> Result<&'a str, Error>{
 }
 
 
-// TODO: configure client pooling
-// probably want to turn this thing into a struct
-pub fn download_torrent(url: Option<&str>) -> Result<Torrent, Error> {
-	dbg!{url};
-	if url.is_some(){
-		let raw_url = url.unwrap();
-		let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
-		let k = reqwest::get(raw_url)?.read_to_end(&mut buffer)?;
-		
-		write_torrent_to_file(&raw_url, &buffer);
-		let t = Torrent::new_bytes(&buffer);
-	
-		Ok(t?)
-	}
-	else{
-		Err(Error::UrlError)
-	}
-	
-}
-
-
-pub fn write_torrent_to_file(url: &str, data: &Vec<u8>) -> String {
-	let mut file_path: String = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-	
-	let mut last = 0;
-	println!{"here"}
-	for i in 0..url.len()-1 {
-		if url.get(i..i+1).unwrap() == "/" {
-			last = i;
-		}
-	}
-
-	let filename = &url.get(last+1..url.len()).unwrap();
-	file_path.push_str(&filename);
-	
-	dbg!{&file_path};
-
-	let mut file = std::fs::File::create(&file_path).unwrap();
-	file.write_all(&data);
-
-
-	return file_path
-}
-
-
-
-pub fn compare_files(f1: &str, f2: &str) -> () {
-
-    let mut buffer1 = Vec::new();
-    let mut file1 = std::fs::File::open(f1).unwrap();
-    file1.read_to_end(&mut buffer1);
-
-    let mut buffer2 = Vec::new();
-    let mut file2 = std::fs::File::open(f2).unwrap();
-    file2.read_to_end(&mut buffer2);
-
-
-    println!{"f1 len:\t{}\tf2 len:\t{}",buffer1.len(), buffer2.len()}
-
-    for i in 0..1000 {
-        let c1 = &buffer1[i];
-        let c2 = &buffer2[i];
-        if c1 == c2 {
-            continue
-        }
-        else{
-            println!{"{} {} {}", i, buffer1[i], buffer2[i]}
-        }
-    } //for
-}

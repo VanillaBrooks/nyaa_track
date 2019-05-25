@@ -92,3 +92,27 @@ impl Torrent{
         Torrent::new_bytes(&buffer)
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct Announce {
+    pub complete: u32,
+    pub incomplete: u32,
+    pub downloaded: u32, 
+    pub interval: u64,
+    #[serde(default)]
+    pub peers: Option<ByteBuf>,
+    #[serde(default)]
+    pub peers6: Option<ByteBuf>
+}
+
+impl Announce {
+    pub fn new_bytes(input_bytes: &Vec<u8>) ->Result<Announce, serde_bencode::Error> {
+        de::from_bytes::<Announce>(&input_bytes)
+    }
+    pub fn new_file(filename: &str) -> Result<Announce, serde_bencode::Error> {
+        let mut buffer = Vec::new();
+        let mut file = std::fs::File::open(filename).unwrap();
+        file.read_to_end(&mut buffer);
+        Announce::new_bytes(&buffer)
+    }
+}

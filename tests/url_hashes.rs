@@ -5,14 +5,14 @@ use nyaa_tracker::requests::url_encoding::hex_to_char;
 
 fn base_test(to_convert: &str, result:&str) {
     let hm =hex_to_char(to_convert);
-    assert_eq!(result.to_ascii_uppercase(), hm.to_uppercase());
+    assert_eq!(result, hm);
 }
 
 #[test]
 fn hash_test() {
     let to_convert = "123456789abcdef123456789abcdef123456789a";
     let hm =hex_to_char(to_convert);
-    assert_eq!("%124Vx%9a%bc%de%f1%23Eg%89%ab%cd%ef%124Vx%9a".to_ascii_uppercase(), hm.to_uppercase())
+    assert_eq!("%124Vx%9a%bc%de%f1%23Eg%89%ab%cd%ef%124Vx%9a", hm)
 }
 #[test]
 fn hash_test_2() {

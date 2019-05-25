@@ -2,14 +2,16 @@ mod read_torrent;
 use read_torrent::Torrent;
 
 pub mod requests;
+pub mod error;
+pub mod utils;
 
 #[macro_use]
 extern crate lazy_static;
 
-use requests::rss_parse::{self, get_xml};
+use requests::rss_parse::{self, get_xml, AnnounceComponents};
 use requests::url_encoding::{Url, hex_to_char};
 // use hashbrown::HashMap;
-use std::collections::HashMap;
+
 
 fn create_torrent(path: &str) ->() {
 	let k = Torrent::new_file(path);
@@ -23,108 +25,137 @@ fn create_torrent(path: &str) ->() {
 	}
 }
 
+
 use serde_urlencoded::ser;
 fn main() {
 	// // nyaa rss feed
-	// let nyaa_rss_feed = "https://nyaa.si/?page=rss";
+	let nyaa_rss_feed = "https://nyaa.si/?page=rss";
 	
 	
 	// // reading stored torrent files
-	// let mut torrent_files = r"C:\Users\Brooks\Downloads\torrent files\".to_string();
-	// let mut downloads = r"C:\Users\Brooks\Downloads\".to_string();
-	// let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-
-	// git_torrents.push_str("1145877.torrent");
-	// let file = &git_torrents;
-	// dbg!{Torrent::new_file(file)};
+	let mut torrent_files = r"C:\Users\Brooks\Downloads\torrent files\".to_string();
+	let mut downloads = r"C:\Users\Brooks\Downloads\".to_string();
+	let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
 	
-	// downloading torrents from internet
-	// let torrent_url = r"https://nyaa.si/download/1145877.torrent";
+	// let mut k = get_xml(nyaa_rss_feed).unwrap();
+	// requests::tracking::announce_components(&mut k);
 
-	// let res = rss_parse::download_torrent(Some(torrent_url));
-	// println!{"nyaa response: "}
-	// dbg!{res};
+	let dir = r"C:\Users\Brooks\github\nyaa_tracker\torrents";
+	// let dir : Vec<std::path::PathBuf> = std::fs::read_dir(dir).unwrap().map(|X| X.unwrap().path()).collect();
+	// dbg!{dir};
+	utils::serialize_all_torrents(dir);
 
-	// hex_to_char();
-
-	// 1.to_string().as_str()
-
-	// get_xml("Test");
-
-	// let url_struct = Url::new("026a8f0bc3194dbbe545ffd2409ea9cc1f6b7776".to_string(), "026a8f0bc3194dbbe545ffd2409ea9cc1f6b7776".to_string());
-	// let k = serde_urlencoded::to_string(url_struct);
-	// dbg!{k};
-	
-	let ann_url = Some("http://nyaa.tracker.wf:7777/announce".to_string());
-	let hash = "9a511c42ec9683672f717a404fd62c1ad2e2710d";
-
-	let mut components_struct = rss_parse::AnnounceComponents::new(ann_url, hash).unwrap();
-	components_struct.announce();
-
-
-
-	// let result = "%01%87%aa%8b%9a%b3%efQ%af%d1s%7a%4b%e4%9e%3e%c1q%1c%b0";
-	// let raw = "0187aa8b9ab3ef51afd1737a4be49e3ec1711cb0";
-
-	// assert_eq!(result.to_ascii_lowercase(), hex_to_char(raw).to_ascii_lowercase());
 
 }
-//python
-//http://nyaa.tracker.wf:7777/announce?info_hash=%3d%96%df%a6%7e%7d%aa%c8%e9Q%a0%e4S%82%025%be%cc%e49&peer_id=%3d%96%df%a6%7e%7d%aa%c8%e9Q%a0%e4S%82%025%be%cc%e49&port=9932&uploaded=0&downloaded=0&numwant=20&compact=1
-//http://nyaa.tracker.wf:7777/announce?info_hash=%259c%2509%2505%2501%25bd%256eh%25bf%2501%25e93%25a8%2588s%25b2%25d5%25fc%2501%25ac%25c6&peer_id=%259c%2509%2505%2501%25bd%256eh%25bf%2501%25e93%25a8%2588s%25b2%25d5%25fc%2501%25ac%25c6&port=9973&uploaded=0&downloaded=0&numwant=0&compact=1
 
 
-// c71783aa9ad4f5f2140f52705882fc33259b1b79
 
-// chars are c7
-// %c7
-// chars are 17
-// %c7%17
-// chars are 83
-// %c7%17%83
-// chars are aa
-// %c7%17%83%aa
-// chars are 9a
-// %c7%17%83%aa%9a
-// chars are d4
-// %c7%17%83%aa%9a%d4
-// chars are f5
-// %c7%17%83%aa%9a%d4%f5
-// chars are f2
-// %c7%17%83%aa%9a%d4%f5%f2
-// chars are 14
-// %c7%17%83%aa%9a%d4%f5%f2%14
-// chars are 0f
-// %c7%17%83%aa%9a%d4%f5%f2%14%0f
-// chars are 52
-// quoting 52 to R result: R
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fR
-// chars are 70
-// quoting 70 to p result: p
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRp
-// chars are 58
-// quoting 58 to X result: X
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX
-// chars are 82
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82
-// chars are fc
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82%fc
-// chars are 33
-// quoting 33 to 3 result: 3
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82%fc3
-// chars are 25
-// quoting 25 to % result: %25
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82%fc3%25
+// chars are 67
+// quoting 67 to g result: g
+// g
 // chars are 9b
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82%fc3%25%9b
-// chars are 1b
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82%fc3%25%9b%1b
-// chars are 79
-// quoting 79 to y result: y
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82%fc3%25%9b%1by
-// %c7%17%83%aa%9a%d4%f5%f2%14%0fRpX%82%fc3%25%9b%1by
+// g%9b
+// chars are ff
+// g%9b%ff
+// chars are 20
+// quoting 20 to   result: %20
+// g%9b%ff%20
+// chars are 26
+// quoting 26 to & result: %26
+// g%9b%ff%20%26
+// chars are b8
+// g%9b%ff%20%26%b8
+// chars are a7
+// g%9b%ff%20%26%b8%a7
+// chars are 6a
+// g%9b%ff%20%26%b8%a7%6a
+// chars are ce
+// g%9b%ff%20%26%b8%a7%6a%ce
+// chars are 66
+// quoting 66 to f result: f
+// g%9b%ff%20%26%b8%a7%6a%cef
+// chars are cf
+// g%9b%ff%20%26%b8%a7%6a%cef%cf
+// chars are fd
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd
+// chars are 08
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08
+// chars are cb
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb
+// chars are c2
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb%c2
+// chars are 7d
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb%c2%7d
+// chars are 89
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb%c2%7d%89
+// chars are c0
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb%c2%7d%89%c0
+// chars are b8
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb%c2%7d%89%c0%b8
+// chars are 64
+// quoting 64 to d result: d
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb%c2%7d%89%c0%b8d
+// g%9b%ff%20%26%b8%a7%6a%cef%cf%fd%08%cb%c2%7d%89%c0%b8d
 
-// space 	%20 	%20
+// chars are 67
+// hex encoding found for character g
+// no escape character found for g
+//   "g"
+// chars are 9b
+//   "g%9b"
+// chars are ff
+//   "g%9b%ff"
+// chars are 20
+// hex encoding found for character
+// escape character found %20
+//   "g%9b%ff%20"
+// chars are 26
+// hex encoding found for character &
+// escape character found %26
+//   "g%9b%ff%20%26"
+// chars are b8
+//   "g%9b%ff%20%26%b8"
+// chars are a7
+//   "g%9b%ff%20%26%b8%a7"
+// chars are 6a
+// hex encoding found for character j
+// no escape character found for j
+//   "g%9b%ff%20%26%b8%a7j"
+// chars are ce
+//   "g%9b%ff%20%26%b8%a7j%ce"
+// chars are 66
+// hex encoding found for character f
+// no escape character found for f
+//   "g%9b%ff%20%26%b8%a7j%cef"
+// chars are cf
+//   "g%9b%ff%20%26%b8%a7j%cef%cf"
+// chars are fd
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd"
+// chars are 08
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08"
+// chars are cb
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08%cb"
+// chars are c2
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08%cb%c2"
+// chars are 7d
+// hex encoding found for character }
+// escape character found %7d
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08%cb%c2%7d"
+// chars are 89
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08%cb%c2%7d%89"
+// chars are c0
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08%cb%c2%7d%89%c0"
+// chars are b8
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08%cb%c2%7d%89%c0%b8"
+// chars are 64
+// hex encoding found for character d
+// no escape character found for d
+//   "g%9b%ff%20%26%b8%a7j%cef%cf%fd%08%cb%c2%7d%89%c0%b8d"
+
+//python
+// http://nyaa.tracker.wf:7777/announce?info_hash=d%ef%e5%81%06%aa%8bGc%24%e4%4f%fb%90%a2%00q%e7%fc%d0&peer_id=d%ef%e5%81%06%aa%8bGc%24%e4%4f%fb%90%a2%00q%e7%fc%d0&port=9932&uploaded=0&downloaded=0&numwant=20&compact=1
+// http://nyaa.tracker.wf:7777/announce?info_hash=d%ef%e5%81%06%aa%8bgc%24%e4%4f%fb%90%a2%00q%e7%fc%d0&peer_id=d%ef%e5%81%06%aa%8bgc%24%e4%4f%fb%90%a2%00q%e7%fc%d0&port=9932&uploaded=0&downloaded=0&numwant=20&compact=1
+// space%20 	%20
 // ! 	%21 	%21
 // " 	%22 	%22
 // # 	%23 	%23

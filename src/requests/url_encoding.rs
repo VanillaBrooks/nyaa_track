@@ -1,13 +1,11 @@
 use hashbrown::HashMap;
-use serde_urlencoded::{self, de, ser};
-use serde_derive::{self, Serialize, Deserialize};
 
 #[macro_use]
 use lazy_static;
 
 // expects string to be lowercase
 pub fn hex_to_char(input: &str) -> String {
-    let input = input.to_uppercase();
+    // let input = input.to_uppercase();
     let mut input_clone = String::with_capacity(20);
 
     lazy_static!{
@@ -19,7 +17,7 @@ pub fn hex_to_char(input: &str) -> String {
     for i in indexes.iter(){
         let chars = input.get(*i..*i+2).unwrap();
         
-        println!{"chars are {}", chars}
+        // println!{"chars are {}", chars}
 
         match hex.get(chars) {
             // the two character combination matches something in hex
@@ -46,18 +44,18 @@ pub fn hex_to_char(input: &str) -> String {
                 input_clone.push_str(chars);
             }
         }
-        dbg!{&input_clone};
+        // dbg!{&input_clone};
     }
 
     return input_clone
 }
-pub fn _hex_to_char() -> HashMap<String, String> {
+fn _hex_to_char() -> HashMap<String, String> {
     let mut chars: Vec<&str> = "! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~".split_ascii_whitespace().collect();
-    let letters = ["a", "b", "c", "d", "e", "f"];
+    let letters = ["A", "B", "C", "D", "E", "F"];
     let mut hex: Vec<String> = Vec::new();
     chars.insert(0, " ");
 
-    for i in (2..8){
+    for i in 2..8{
         // let mut new : Vec<String> = Vec::new();
         
         for j in (i*10)..((i+1)*10){
@@ -88,12 +86,15 @@ fn reserved_characters() -> HashMap<String, String> {
 
     let mut hm: HashMap<String, String> = HashMap::new();
     for _ in 0..keys.len(){
-        hm.insert(keys.remove(0).to_string(), values.remove(0).to_string());
+        hm.insert(
+            keys.remove(0).to_string(), 
+            values.remove(0).to_string().to_ascii_lowercase()
+        );
     }
     return hm;
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct Url {
 	info_hash: String,
 	peer_id: String,
@@ -104,11 +105,42 @@ pub struct Url {
 	compact: u32
 }
 
+
+
 impl Url {
     pub fn new(info_hash: String, peer_id: String) -> Url {
-        let url_hash     = hex_to_char(&info_hash).to_ascii_lowercase();
-        let peer_id_hash = hex_to_char(&peer_id).to_ascii_lowercase();
-        Url{info_hash: url_hash, peer_id: peer_id_hash, port: 9973, uploaded:0, downloaded:0,numwant:0,compact: 1}
+        let url_hash     = hex_to_char(&info_hash);
+        let peer_id_hash = hex_to_char(&peer_id);
+        // let url_hash = info_hash;
+        // let peer_id_hash = peer_id;
+        Url{info_hash: url_hash, peer_id: peer_id_hash, port: 9932, uploaded:0, downloaded:0,numwant:20,compact: 1}
+    }
+
+    // build the url format that is required
+    // ....../announce?info_hash=......&peer_id=......& etc
+    pub fn serialize(&self) -> String {
+
+        let mut s = String::with_capacity(50);
+        Self::_seialze_helper(&mut s, "info_hash", &self.info_hash);
+        Self::_seialze_helper(&mut s, "peer_id", &self.peer_id);
+        Self::_seialze_helper(&mut s, "port", &self.port.to_string());
+        Self::_seialze_helper(&mut s, "uploaded", &self.uploaded.to_string());
+        Self::_seialze_helper(&mut s, "downloaded", &self.downloaded.to_string());
+        Self::_seialze_helper(&mut s, "numwant", &self.numwant.to_string());
+        Self::_seialze_helper(&mut s, "compact", &self.compact.to_string());
+
+
+        return s;
+    }
+
+    fn _seialze_helper(base: &mut String, cat: &str, var: &String) {
+        if base.len() != 0{
+            base.push_str("&");
+        }
+        
+        base.push_str(cat);
+        base.push_str("=");
+        base.push_str(&var);
     }
 }
 
