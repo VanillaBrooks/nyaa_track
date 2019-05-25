@@ -12,8 +12,8 @@ def hex_to_char_dict():
 		new = [str(i) for i in range(k*10,(k+1)*10)] + [str(k) + letters[j] for j in range(6)]
 		hex += new
 	hex.pop(-1)
-	chars = ' ! " # $ % & \' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~'.split(' ')
-
+	chars = '! " # $ % & \' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~'.split(' ')
+	chars = [" "] + chars
 	return {hex[i]: chars[i] for i in range(len(hex))}
 
 # primitive bencoding for strings
@@ -30,12 +30,16 @@ def url_encoding(hex):
 
 		ab = hex[i:i+2]
 		conversion = converter.get(ab)
+		# print(f"chars are {ab}")
 
 		if conversion is None:
-			ret += "%" + ab
+			new_conv = "%" + ab
+			ret += new_conv
 
 		else:
-			ret += urllib.parse.quote(conversion)
+			new_conv = urllib.parse.quote(conversion)
+			# print(f"quoting {ab} to {conversion} result: {new_conv}")
+			ret += new_conv
 
 
 		# print(ret)
@@ -64,4 +68,8 @@ def pull_stats(info_hash):
 
 
 if __name__ == "__main__":
-	pull_stats('0187aa8b9ab3ef51afd1737a4be49e3ec1711cb0')
+	url = "cf7f23087183fe2525e4fdc73b33da8baa13bf64"
+	print(url)
+	print(url_encoding(url))
+
+	pull_stats(url)
