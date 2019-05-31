@@ -3,3 +3,4 @@ target/
 __pycache__/
 torrents/
 temp/
+torrent_test/

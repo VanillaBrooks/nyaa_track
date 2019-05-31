@@ -1,3 +1,6 @@
+
+
+
 #[derive(Debug)]
 pub enum Error{
 	IO(std::io::Error),
@@ -7,6 +10,7 @@ pub enum Error{
 	Torrent(TorrentErrors),
 	Announce(AnnounceErrors)
 }
+
 impl From<reqwest::Error> for Error{
 	fn from(error: reqwest::Error) -> Error{
 		return Error::Reqwest(error)
@@ -32,6 +36,8 @@ impl From<serde_urlencoded::ser::Error> for Error {
 		return Error::Announce(AnnounceErrors::SerdeError(error))
 	}
 }
+
+
 #[derive(Debug)]
 pub enum AnnounceErrors{
 	SerdeError(serde_urlencoded::ser::Error),

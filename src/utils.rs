@@ -95,24 +95,23 @@ pub fn get_unix_time() -> u64 {
         .as_secs();
 }
 
-pub fn serialize_all_torrents(directory: &str) -> Vec<read_torrent::Torrent>{
-
-	// let dir : Vec<std::path::PathBuf>
-    let dir : Vec<Result<read_torrent::Torrent, _>> = std::fs::read_dir(directory)
-                                        .unwrap()
-                                        .map(|x| read_torrent::Torrent::new_file(
-                                                x.unwrap().path().to_str().unwrap()
-                                            )   
-                                        )
-                                        .collect();
-    let mut dir_unwrapped = Vec::with_capacity(dir.len());
-
-    dir.into_iter().for_each(|x| {
-        match x{
-            Ok(k) => dir_unwrapped.push(k),
-            Err(k) => println!{"could not read stored torrent with error {:?}", k}
-        }});
-
-    return dir_unwrapped
+pub fn serialize_all_torrents(directory: &str) -> () {// Vec<read_torrent::Torrent>{
+//  : Vec<read_torrent::Torrent>
+    let dir : Vec<_>= std::fs::read_dir(directory)
+        .unwrap()
+        .map(|x| 
+        read_torrent::Torrent::new_file(
+                x.unwrap()
+                .path()
+                .to_str()
+                .unwrap()
+            )
+        )
+        .filter(|torrent| torrent.is_err()).collect();
+        // .map(|ok_torrent| ok_torrent.unwrap())
+        // .collect();
+    dbg!{dir};
+    // let ph = 
+    // return dir;
     
 }

@@ -30,7 +30,7 @@ def url_encoding(hex):
 
 		ab = hex[i:i+2]
 		conversion = converter.get(ab)
-		# print(f"chars are {ab}")
+		print(f"chars are {ab}")
 
 		if conversion is None:
 			new_conv = "%" + ab
@@ -38,11 +38,11 @@ def url_encoding(hex):
 
 		else:
 			new_conv = urllib.parse.quote(conversion)
-			# print(f"quoting {ab} to {conversion} result: {new_conv}")
+			print(f"quoting {ab} to {conversion} result: {new_conv}")
 			ret += new_conv
 
 
-		# print(ret)
+		print(ret)
 	return ret
 
 # ensures that the test case functions correctly
@@ -68,8 +68,8 @@ def pull_stats(info_hash):
 
 
 if __name__ == "__main__":
-	url = "cf7f23087183fe2525e4fdc73b33da8baa13bf64"
+	url = "679bff2026b8a76ace66cffd08cbc27d89c0b864"
 	print(url)
 	print(url_encoding(url))
 
-	pull_stats(url)
+	# pull_stats(url)

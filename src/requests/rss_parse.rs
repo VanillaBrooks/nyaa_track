@@ -14,7 +14,7 @@ use super::super::error::*;
 // download xml data from a url as well as their associated torrents
 // return a vector of structs required to make announcements
 // will only Error if the provided url is incorrect
-pub fn get_xml(url: &str) -> Result<Vec<AnnounceComponents>, Error> {
+pub fn get_xml(url: &str) -> Result<Data, Error> {
 
 	//TODO: move this to a lazy_static!{}
 	let temp_folder : &'static str = r"C:\Users\Brooks\github\nyaa_tracker\temp";
@@ -25,19 +25,16 @@ pub fn get_xml(url: &str) -> Result<Vec<AnnounceComponents>, Error> {
 	path.push_str(&utils::get_unix_time().to_string());
 	path.push_str(".xml");
 
-	let mut req = reqwest::get(url)?;
+	// request xml data and read to file
 	let xml_data = reqwest::get(url)?.text()?;
-
-
 	let mut file = fs::File::create(&path)?;
 	file.write_all(xml_data.as_bytes());
 	
-
+	// read xml data from file
 	let file = fs::File::open(&path)?;
 	let channel = rss::Channel::read_from(std::io::BufReader::new(file))?;
 	let mut items = channel.items().to_vec();
 	
-
 
 	let mut good_data: Vec<AnnounceComponents>= Vec::with_capacity(items.len());
 	let mut error_data: Vec<Error> = Vec::new();
@@ -50,11 +47,11 @@ pub fn get_xml(url: &str) -> Result<Vec<AnnounceComponents>, Error> {
 
 		// TODO: better handling for bad requests
 		match utils::download_torrent(current_item.link()){
-			Ok(x) => {
+			Ok(torrent) => {
 
 				match nyaa_hash_from_xml(current_item) {
 					Ok(info_hash) => {
-						match AnnounceComponents::new(x.announce, info_hash) {
+						match AnnounceComponents::new(torrent.announce, info_hash, torrent.creation_date) {
 							Ok(announce)=> good_data.push(announce),
 							Err(x) => {
 								println!{"there was an error with the announce struct: {:?}", x};
@@ -79,14 +76,15 @@ pub fn get_xml(url: &str) -> Result<Vec<AnnounceComponents>, Error> {
 	}
 	println!{"all data: "}
 	dbg!{&good_data};
-	dbg!{error_data};
-	return Ok(good_data)
+	dbg!{&error_data};
+	return Ok(Data::new(good_data, error_data))
 }
 
 #[derive(Debug)]
 pub struct AnnounceComponents {
 	pub url : String,
 	pub info_hash: String,
+	creation_date: u64,
 	announce_url: Option<String>,
 	interval: Option<u64>,
 	last_announce: Option<std::time::Instant>
@@ -94,12 +92,19 @@ pub struct AnnounceComponents {
 
 // TODO: fix unwrap
 impl AnnounceComponents {
-	pub fn new (url: Option<String>, hash: String) -> Result<AnnounceComponents, Error> {
+	pub fn new (url: Option<String>, hash: String, creation_date: Option<u64>) -> Result<AnnounceComponents, Error> {
 		// i think this .is_some() is not needed since the outer match
 		if url.is_some(){
 
+			let date = match creation_date {
+				Some(unix_date) => unix_date,
+				//TODO: Log that torrents come without creation dates
+				None => utils::get_unix_time()
+			};
+
 			Ok(AnnounceComponents {url: url.unwrap(),
 								info_hash: hash, 
+								creation_date: date,
 								announce_url: None,
 								interval: None,
 								last_announce: None})
@@ -109,8 +114,10 @@ impl AnnounceComponents {
 		}
 	}
 
-
+	// TODO: pass in constructed client for get requests
 	pub fn announce(&mut self) -> Result<Announce, Error> {
+
+		// generate an announce url if empty
 		if self.announce_url.is_none() {
 			let url = url_encoding::Url::new(self.info_hash.to_string(), self.info_hash.to_string());
 			let url = url.serialize();
@@ -122,10 +129,11 @@ impl AnnounceComponents {
 			self.announce_url = Some(url_copy);
 		}
 
+		
 		match &self.announce_url {
 			Some(url) => {
 				
-				// make sure that the tracker is going to let us make an announce cal
+				// make sure that the tracker is going to let us make an announce call
 				if self.last_announce.is_some() {
 					let last = self.last_announce.unwrap().elapsed().as_secs();
 					let interval = self.interval.unwrap();
@@ -148,6 +156,8 @@ impl AnnounceComponents {
 						self.interval = Some(parse.interval);
 						self.last_announce = Some(std::time::Instant::now());
 
+						Self::configure_next_announce(self, &parse.complete);
+
 						return Ok(parse);
 						
 					},
@@ -167,8 +177,34 @@ impl AnnounceComponents {
 			// TODO: Log errors here
 			None => Err(Error::Announce(AnnounceErrors::AnnounceUrlNone))
 		}
+
+	}
+		fn configure_next_announce(&mut self, seeds: &u32) {
+			let days : u64 = (utils::get_unix_time() - self.creation_date) / 86400;
+			let min_seeds : u32= 20; // number of seeds after time period where we check less frequently
+			let min_days = 7; // number of days when we check less frequently
+			
+			let new_interval = 6*60*60;
+
+			if (days < min_days) && (*seeds < min_seeds) {
+				self.interval = Some(new_interval);
+
+			}
+			
+		}
+}
+
+#[derive(Debug)]
+pub struct Data {
+	pub good : Vec<AnnounceComponents>,
+	pub bad : Vec<Error>
+}
+impl Data {
+	fn new(good: Vec<AnnounceComponents>, bad : Vec<Error>) -> Data{ 
+		Data {good: good, bad: bad}
 	}
 }
+
 
 // do this since ? does not work w/ Option<T>
 fn nyaa_hash_from_xml(item: rss::Item) -> Result<String, Error>{

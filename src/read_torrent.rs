@@ -13,6 +13,15 @@ use std::io::{self, Read};
 use crypto;
 use crypto::digest::Digest;
 
+use bencode::ToBencode;
+use bencode::Bencode;
+use std::collections::BTreeMap;
+use bencode::util::ByteString;
+
+use std::fs;
+use std::path::Path;
+
+
 
 #[derive(Debug, Deserialize)]
 pub struct Node(String, i64);
@@ -27,38 +36,41 @@ pub struct File {
 
 #[derive(Debug, Deserialize)]
 pub struct Info {
-    name: String,
+    #[serde(rename = "length")]
     // #[serde(default)]
-    // pieces: ByteBuf,
+    length: u64,
+    name: String,
+    
     #[serde(rename="piece length")]
-    piece_length: i64,
+    piece_length: u64,
+    
+    #[serde(default)]
+    pieces: ByteBuf,
+    
+    #[serde(default)]
+    private: u8,
+
     #[serde(default)]
     md5sum: Option<String>,
-    #[serde(default)]
-    length: Option<i64>,
+    
     #[serde(default)]
     files: Option<Vec<File>>,
-    #[serde(default)]
-    private: Option<u8>,
+    
+    
     #[serde(default)]
     path: Option<Vec<String>>,
+    
     #[serde(default)]
     #[serde(rename="root hash")]
+    
     root_hash: Option<String>,
     #[serde(default)]
     info_hash: Option<String>,
 }
-impl Info{
-    fn info_hash(&self) -> Result<String, String> {
-        let mut hasher = crypto::sha1::Sha1::new();
-        hasher.input_str("test");
-        Ok(hasher.result_str())
-    }
-}
 
 #[derive(Debug, Deserialize)]
 pub struct Torrent {
-    info: Info,
+    pub info: Info,
     #[serde(default)]
     pub announce: Option<String>,
     #[serde(default)]
@@ -72,7 +84,7 @@ pub struct Torrent {
     announce_list: Option<Vec<Vec<String>>>,
     #[serde(default)]
     #[serde(rename="creation date")]
-    creation_date: Option<i64>,
+    pub creation_date: Option<u64>,
     #[serde(rename="comment")]
     comment: Option<String>,
     #[serde(default)]
@@ -80,7 +92,7 @@ pub struct Torrent {
     created_by: Option<String>,
 }
 
-
+//TODO: Fix use lifetimes and return reference to hash instead
 impl Torrent{
     pub fn new_bytes(input_bytes: &Vec<u8>) ->Result<Torrent, serde_bencode::Error> {
         de::from_bytes::<Torrent>(&input_bytes)
@@ -90,6 +102,36 @@ impl Torrent{
         let mut file = std::fs::File::open(filename).unwrap();
         file.read_to_end(&mut buffer);
         Torrent::new_bytes(&buffer)
+    }
+    pub fn info_hash(&mut self) -> Result<String, std::io::Error> {
+    match &self.info.info_hash{
+        
+        Some(x) => return Ok(x.to_string()),
+
+        None => {
+            let mut hasher = crypto::sha1::Sha1::new();
+            let bencoded = self.to_bencode();
+            // dbg!{&bencoded};
+            let bytes = bencoded.to_bytes()?;
+
+
+            hasher.input(&bytes);
+            Ok(hasher.result_str())
+        }
+    }
+    }
+}
+
+impl ToBencode for Torrent {
+    fn to_bencode(&self) -> Bencode {
+        let mut m = BTreeMap::new();
+        m.insert(ByteString::from_str("length"), self.info.length.to_bencode());
+        m.insert(ByteString::from_str("name"), self.info.name.to_bencode());
+        m.insert(ByteString::from_str("piece length"), self.info.piece_length.to_bencode());
+        m.insert(ByteString::from_str("pieces"), Bencode::ByteString(self.info.pieces.clone().into_vec()));
+        // m.insert(ByteString::from_str("private"), self.info.private.to_bencode());
+        // dbg!{&m};
+        Bencode::Dict(m)
     }
 }
 
@@ -114,5 +156,23 @@ impl Announce {
         let mut file = std::fs::File::open(filename).unwrap();
         file.read_to_end(&mut buffer);
         Announce::new_bytes(&buffer)
+    }
+}
+
+
+#[derive(Debug, Deserialize)]
+pub struct TestInfo {
+    length : u64,
+    name: String,
+    #[serde(rename= "piece length")]
+    piece_length: u64
+}
+
+impl TestInfo{
+    pub fn new(filename : &str) -> Result<TestInfo, serde_bencode::Error> {
+        let mut buffer = Vec::new();
+        let mut file = std::fs::File::open(filename).unwrap();
+        file.read_to_end(&mut buffer);
+        de::from_bytes::<TestInfo>(&buffer)
     }
 }
