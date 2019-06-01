@@ -5,6 +5,8 @@ pub mod requests;
 pub mod error;
 pub mod utils;
 
+use error::Error;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -31,42 +33,44 @@ use std::fs::File;
 use bencode::Bencode;
 use bencode::ToBencode;
 use serde_urlencoded::ser;
-fn main() {
-	// // nyaa rss feed
-	let nyaa_rss_feed = "https://nyaa.si/?page=rss";
-	
-	
-	// // reading stored torrent files
-	let mut torrent_files = r"C:\Users\Brooks\Downloads\torrent files\".to_string();
-	let mut downloads = r"C:\Users\Brooks\Downloads\".to_string();
-	let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-	
-	// let mut k = get_xml(nyaa_rss_feed).unwrap();
-	// requests::tracking::announce_components(&mut k.good);
-	// let mut cpy = r"C:\Users\Brooks\github\nyaa_tracker\torrents\test.txt";
-	// git_torrents.push_str("1147506.torrent");
-
-	// let mut writer =  File::create(cpy).unwrap();
-
-	// let mut torrent = read_torrent::Torrent::new_file(&git_torrents);
-	// dbg!{torrent};
-	// let bc = torrent.to_bencode().to_bytes().unwrap();
-	// writer.write(&bc);
-	// bc.to_writer(&mut writer);
-	// dbg!{k};
-
-	// let dir = r"C:\Users\Brooks\github\nyaa_tracker\torrents";
-	// let torrents = utils::serialize_all_torrents(dir);
-	// dbg!{torrents.len()};
-	// dbg!{&torrents[0]};
 
 
-	let loc = r"C:\Users\Brooks\Downloads\test.txt";
+fn write_torrent(read: &str, write: &str) -> Result<(), Error> {
+    let mut torrent = read_torrent::Torrent::new_file(&read)?;
+	let x = torrent.to_bencode().to_bytes()?;
+	let mut file = File::create(&write)?;
 
-	let torrent = read_torrent::TestInfo::new(&loc);
+	file.write(&x);
 
-	dbg!{&torrent};
-
+	Ok(())
 
 }
 
+
+fn read_data (loc: &str ) -> Result<(), Error> {
+	let mut buffer = Vec::new();
+
+	let mut file = File::open(&loc)?;
+
+
+	file.read_to_end(&mut buffer);
+	let ans = read_torrent::sha1(&buffer);
+
+	dbg!{ans};
+	Ok(())
+}
+
+//6f7421ac8957e4a20b971d8839707cc58e55615a
+
+fn main() {
+    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
+    git_torrents.push_str("1147506.torrent");
+
+
+	let nyaa = "https://nyaa.si/?page=rss";
+	let data = get_xml(nyaa);
+	dbg!{data};
+}
+
+
+//8463057ea30edd86f3968c57ca4658090c616382

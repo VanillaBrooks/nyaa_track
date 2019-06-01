@@ -10,14 +10,14 @@ use super::read_torrent;
 use super::read_torrent::{Torrent, Announce};
 // TODO: configure client pooling
 // probably want to turn this thing into a struct
-pub fn download_torrent(url: Option<&str>) -> Result<Torrent, Error> {
+pub fn download_torrent(url: Option<&str>, save_name: &str) -> Result<Torrent, Error> {
 	dbg!{url};
 	if url.is_some(){
 		let raw_url = url.unwrap();
 		let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
 		let k = reqwest::get(raw_url)?.read_to_end(&mut buffer)?;
 		
-		write_torrent_to_file(&raw_url, &buffer);
+		write_torrent_to_file(&raw_url, &buffer, &save_name);
 		let t = Torrent::new_bytes(&buffer);
 	
 		Ok(t?)
@@ -29,8 +29,21 @@ pub fn download_torrent(url: Option<&str>) -> Result<Torrent, Error> {
 }
 
 // generate a .torrent file for the data
-pub fn write_torrent_to_file(url: &str, data: &Vec<u8>) -> String {
-	let mut file_path: String = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
+pub fn write_torrent_to_file(url: &str, data: &Vec<u8>, save_name: &str) -> String {
+    let mut base = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
+    base.push_str(save_name);
+    base.push_str(".torrent");
+
+	let mut file = std::fs::File::create(&base).unwrap();
+	file.write_all(&data);
+
+    return base
+}
+
+
+// BASE SAVE PATH
+fn parse_for_name(url: &str) -> String {
+    let mut file_path: String = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
 	
 	let mut last = 0;
 	for i in 0..url.len()-1 {
@@ -41,16 +54,8 @@ pub fn write_torrent_to_file(url: &str, data: &Vec<u8>) -> String {
 
 	let filename = &url.get(last+1..url.len()).unwrap();
 	file_path.push_str(&filename);
-	
-	dbg!{&file_path};
-
-	let mut file = std::fs::File::create(&file_path).unwrap();
-	file.write_all(&data);
-
-
-	return file_path
+    return file_path
 }
-
 
 pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
 
@@ -97,8 +102,7 @@ pub fn get_unix_time() -> u64 {
         .as_secs();
 }
 
-pub fn serialize_all_torrents(directory: &str) -> () {// Vec<read_torrent::Torrent>{
-//  : Vec<read_torrent::Torrent>
+pub fn serialize_all_torrents(directory: &str) ->  Vec<read_torrent::Torrent>{
     let dir : Vec<_>= std::fs::read_dir(directory)
         .unwrap()
         .map(|x| 
@@ -109,11 +113,10 @@ pub fn serialize_all_torrents(directory: &str) -> () {// Vec<read_torrent::Torre
                 .unwrap()
             )
         )
-        .filter(|torrent| torrent.is_err()).collect();
-        // .map(|ok_torrent| ok_torrent.unwrap())
-        // .collect();
-    dbg!{dir};
-    // let ph = 
-    // return dir;
+        .filter(|torrent| torrent.is_ok())
+        .map(|ok_torrent| ok_torrent.unwrap())
+        .collect();
+
+    return dir;
     
 }

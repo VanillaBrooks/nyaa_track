@@ -44,39 +44,31 @@ pub fn get_xml(url: &str) -> Result<Data, Error> {
 		let current_item = items.remove(0);
 		// dbg!{nyaa_hash_from_xml(current_item)};
 
-
-		// TODO: better handling for bad requests
-		match utils::download_torrent(current_item.link()){
-			Ok(torrent) => {
-
-				match nyaa_hash_from_xml(current_item) {
-					Ok(info_hash) => {
-						match AnnounceComponents::new(torrent.announce, info_hash, torrent.creation_date) {
-							Ok(announce)=> good_data.push(announce),
-							Err(x) => {
-								println!{"there was an error with the announce struct: {:?}", x};
-								error_data.push(x);
-							}	
+		match nyaa_hash_from_xml(&current_item) {
+			Ok(info_hash) => {
+				match utils::download_torrent(current_item.link(), &info_hash) {
+					Ok(Torrent) => {
+						match AnnounceComponents::new(Torrent.announce, info_hash, Torrent.creation_date) {
+							Ok(announce) => good_data.push(announce),
+							Err(announce_err)=> {
+								println!{"there was a problem with the announce link {:?}", announce_err};
+								error_data.push(announce_err);
+							}
 						}
-						
-					},
-					Err(error) => {
-						println!{"infohash was no ok : {:?}", error};
-						error_data.push(error);
+					}
+					Err(link_error) =>{
+						println!{"there was an error with the torrent link {:?}", link_error}
+						error_data.push(link_error);
 					}
 				}
-			},
-
-			//TODO: handle this error better
-			Err(x) => {
-				println!{"there was an error with torrent link: {:?}", x};
-				error_data.push(x);
+			}
+			Err(error) => {
+				println!{"could not find info hash from rss feed {:?}", error}
+				error_data.push(error);
 			}
 		}
 	}
-	println!{"all data: "}
-	dbg!{&good_data};
-	dbg!{&error_data};
+
 	return Ok(Data::new(good_data, error_data))
 }
 
@@ -207,7 +199,7 @@ impl Data {
 
 
 // do this since ? does not work w/ Option<T>
-fn nyaa_hash_from_xml(item: rss::Item) -> Result<String, Error>{
+fn nyaa_hash_from_xml(item: &rss::Item) -> Result<String, Error>{
 	let ext = item.extensions();
 
 	match ext.get("nyaa"){

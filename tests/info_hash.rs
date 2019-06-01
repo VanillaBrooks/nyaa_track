@@ -3,8 +3,8 @@
 use nyaa_tracker::read_torrent;
 
 #[test]fn hash1(){
-    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-    git_torrents.push_str("hash1.torrent");
+    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\tests\hashes\".to_string();
+    git_torrents.push_str("hash1");
     let mut torrent = read_torrent::Torrent::new_file(&git_torrents).unwrap();
     // dbg!{&torrent.info};
 
@@ -15,8 +15,8 @@ use nyaa_tracker::read_torrent;
 
 #[test]
 fn hash2(){
-    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-    git_torrents.push_str("hash2.torrent");
+    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\tests\hashes\".to_string();
+    git_torrents.push_str("hash2");
     let mut torrent = read_torrent::Torrent::new_file(&git_torrents).unwrap();
 
     assert_eq!("4a7ca64ec23fa77272cc8aa06b9c1fe29e75dd54", torrent.info_hash().unwrap())
@@ -24,8 +24,8 @@ fn hash2(){
 
 #[test]
 fn hash3() {
-    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-    git_torrents.push_str("hash3.torrent");
+    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\tests\hashes\".to_string();
+    git_torrents.push_str("hash3");
     let mut torrent = read_torrent::Torrent::new_file(&git_torrents).unwrap();
 
     assert_eq!( "1e519729c2858f914a7717c62c90c76698886d42", torrent.info_hash().unwrap())
@@ -34,8 +34,8 @@ fn hash3() {
 #[test]
 fn hash4() {
     let hash = "dc6cd1a241ab1dd62dc334d140f2b8e2ff5a1b57";
-    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-    git_torrents.push_str("hash4.torrent");
+    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\tests\hashes\".to_string();
+    git_torrents.push_str("hash4");
 
     let mut torrent = read_torrent::Torrent::new_file(&git_torrents).unwrap();
 
