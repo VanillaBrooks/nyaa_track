@@ -66,21 +66,23 @@ pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
     println!{"f1 len:\t{}\tf2 len:\t{}",buffer1.len(), buffer2.len()}
 
     let mut len = 0;
-    if f1.len()  > f2.len() {
-        len = f2.len()
+    if buffer1.len()  > f2.len() {
+        len = buffer2.len()
     }
     else{
-        len = f1.len()
+        len = buffer1.len()
     }
 
-    for i in 0..len {
+    for i in 0..(len-1 ){
         let c1 = &buffer1[i];
         let c2 = &buffer2[i];
         if c1 == c2 {
+            println!{"match"}
             continue
         }
         else{
             println!{"{} {} {}", i, buffer1[i], buffer2[i]}
+            break
         }
     } //for
 
