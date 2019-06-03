@@ -43,7 +43,7 @@ pub fn get_xml(url: &str) -> Result<Data, Error> {
 		println!{"{}", i}
 		let current_item = items.remove(0);
 		// dbg!{nyaa_hash_from_xml(current_item)};
-
+		
 		match nyaa_hash_from_xml(&current_item) {
 			Ok(info_hash) => {
 				match utils::download_torrent(current_item.link(), &info_hash) {
@@ -76,15 +76,15 @@ pub fn get_xml(url: &str) -> Result<Data, Error> {
 pub struct AnnounceComponents {
 	pub url : String,
 	pub info_hash: String,
-	creation_date: u64,
+	creation_date: i64,
 	announce_url: Option<String>,
-	interval: Option<u64>,
+	interval: Option<i64>,
 	last_announce: Option<std::time::Instant>
 }
 
 // TODO: fix unwrap
 impl AnnounceComponents {
-	pub fn new (url: Option<String>, hash: String, creation_date: Option<u64>) -> Result<AnnounceComponents, Error> {
+	pub fn new (url: Option<String>, hash: String, creation_date: Option<i64>) -> Result<AnnounceComponents, Error> {
 		// i think this .is_some() is not needed since the outer match
 		if url.is_some(){
 
@@ -127,7 +127,7 @@ impl AnnounceComponents {
 				
 				// make sure that the tracker is going to let us make an announce call
 				if self.last_announce.is_some() {
-					let last = self.last_announce.unwrap().elapsed().as_secs();
+					let last = self.last_announce.unwrap().elapsed().as_secs() as i64;
 					let interval = self.interval.unwrap();
 					if last < interval {
 						return Err(
@@ -148,7 +148,7 @@ impl AnnounceComponents {
 						self.interval = Some(parse.interval);
 						self.last_announce = Some(std::time::Instant::now());
 
-						Self::configure_next_announce(self, &parse.complete);
+						self.configure_next_announce(&parse.complete);
 
 						return Ok(parse);
 						
@@ -171,9 +171,9 @@ impl AnnounceComponents {
 		}
 
 	}
-		fn configure_next_announce(&mut self, seeds: &u32) {
-			let days : u64 = (utils::get_unix_time() - self.creation_date) / 86400;
-			let min_seeds : u32= 20; // number of seeds after time period where we check less frequently
+		fn configure_next_announce(&mut self, seeds: &i64) {
+			let days : i64 = (utils::get_unix_time() - self.creation_date) / 86400;
+			let min_seeds : i64= 20; // number of seeds after time period where we check less frequently
 			let min_days = 7; // number of days when we check less frequently
 			
 			let new_interval = 6*60*60;

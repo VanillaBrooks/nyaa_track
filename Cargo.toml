@@ -24,5 +24,4 @@ lazy_static = "1.3.0"
 
 bencode = "0.1.16"
 
-diesel = { version = "1.4.2", features = ["postgres"] }
-dotenv = "0.14.1"
+postgres = "0.15.2"

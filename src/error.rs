@@ -43,7 +43,7 @@ pub enum AnnounceErrors{
 	SerdeError(serde_urlencoded::ser::Error),
 	AnnounceUrlNone,
 	AnnounceUrlError(String),
-	AnnounceNotReady(u64)
+	AnnounceNotReady(i64)
 }
 
 #[derive(Debug)]

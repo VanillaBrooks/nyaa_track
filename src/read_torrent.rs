@@ -6,7 +6,7 @@ use serde_derive::{self, Serialize, Deserialize};
 use serde_bytes::{self, ByteBuf};
 
 use serde_bencode;
-use serde_bencode::de;
+use serde_bencode::{de, ser};
 
 use std::io::{self, Read};
 
@@ -21,14 +21,16 @@ use bencode::util::ByteString;
 use std::fs;
 use std::path::Path;
 
+use regex::bytes::Regex;
+
 
 
 #[derive(Debug, Deserialize)]
 pub struct Node(String, i64);
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct File {
-    pub length: u64,
+    pub length: i64,
     path: Vec<String>,
     #[serde(default)]
     md5sum: Option<String>,
@@ -50,17 +52,36 @@ impl ToBencode for File {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Info {
+    #[serde(rename="file-duration")]
+    #[serde(default)]
+    fileduration: Option<Vec<i64>>,
+
+    #[serde(rename="file-media")]
+    #[serde(default)]
+    filemedia : Option<Vec<i64>>,
+
+
+    #[serde(default)]
+    ed2k: Option<ByteBuf>,
+
+    #[serde(default)]
+    filehash: Option<ByteBuf>,
+
     #[serde(rename = "length")]
     #[serde(default)]
-    length: Option<u64>,
+    length: Option<i64>,
     
     #[serde(default)]
     name: Option<String>,
+
+    #[serde(rename="name.utf-8")]
+    #[serde(default)]
+    utf8name: Option<String>,
     
     #[serde(rename="piece length")]
-    piece_length: Option<u64>,
+    piece_length: Option<i64>,
     
     #[serde(default)]
     pieces: Option<ByteBuf>,
@@ -74,13 +95,12 @@ pub struct Info {
     #[serde(default)]
     files: Option<Vec<File>>,
     
-    
     #[serde(default)]
     path: Option<Vec<String>>,
     
     #[serde(default)]
     #[serde(rename="root hash")]
-    root_hash: Option<String>,
+    roothash: Option<String>,
     
     #[serde(default)]
     info_hash: Option<String>,
@@ -92,14 +112,34 @@ impl Info {
     }
 }
 
+// todo: macro this shit
 impl ToBencode for Info {
     fn to_bencode(&self) -> Bencode {
-        println!{"\n\n\n\nbencoding\n\n\n\n"}
+        // println!{"\n\n\n\nbencoding\n\n\n\n"}
         
         let mut m = BTreeMap::new();
+        println!{"new"}
+
+        if self.fileduration.is_some() {
+            println!{"duration"}
+            m.insert(ByteString::from_str("file-duration"), self.fileduration.clone().unwrap().to_bencode());
+        }
+
+        if self.filemedia.is_some() {
+            println!{"media"}
+            m.insert(ByteString::from_str("file-media"), self.filemedia.clone().unwrap().to_bencode());
+        }
+
+        if self.ed2k.is_some() {
+            m.insert(ByteString::from_str("ed2k"), Bencode::ByteString(self.ed2k.clone().unwrap().into_vec()));
+        }
+
+        if self.filehash.is_some() {
+            m.insert(ByteString::from_str("filehash"), Bencode::ByteString(self.filehash.clone().unwrap().into_vec()));
+        }
 
         if self.length.is_some(){
-            println!{"length"}
+            // println!{"length"}
             m.insert(ByteString::from_str("length"), self.length.unwrap().to_bencode());
         }
         else if self.files.is_some() {
@@ -108,24 +148,38 @@ impl ToBencode for Info {
             m.insert(ByteString::from_str("files"), bc);
         }
 
+        if self.md5sum.is_some() {
+            m.insert(ByteString::from_str("md5sum"), self.md5sum.clone().unwrap().to_bencode());
+        }
+
         match &self.name{
             Some(name) => {
-                println!{"name"};
+                // println!{"name"};
                 m.insert(ByteString::from_str("name"), name.to_bencode());
             },
             None => {}
         }
+
+        match &self.utf8name{
+            Some(name) => {
+                // println!{"name"};
+                m.insert(ByteString::from_str("name.utf-8"), name.to_bencode());
+            },
+            None => {}
+        }
+
         if self.piece_length.is_some() {
-            println!{"piece length"}
+            // println!{"piece length"}
             m.insert(ByteString::from_str("piece length"), self.piece_length.unwrap().to_bencode());
         }
 
         if self.pieces.is_some() {
-            println!{"pieces"}
+            // println!{"pieces"}
             m.insert(ByteString::from_str("pieces"), Bencode::ByteString(self.pieces.clone().unwrap().into_vec()));
         }
+
         if self.private.is_some() {
-            println!{"private"}
+            // println!{"private"}
             m.insert(ByteString::from_str("private"), self.private.unwrap().to_bencode());
         }
 
@@ -155,7 +209,7 @@ pub struct Torrent {
     
     #[serde(default)]
     #[serde(rename="creation date")]
-    pub creation_date: Option<u64>,
+    pub creation_date: Option<i64>,
     
     #[serde(rename="comment")]
     comment: Option<String>,
@@ -168,7 +222,47 @@ pub struct Torrent {
 //TODO: Fix use lifetimes and return reference to hash instead
 impl Torrent{
     pub fn new_bytes(input_bytes: &Vec<u8>) ->Result<Torrent, serde_bencode::Error> {
-        de::from_bytes::<Torrent>(&input_bytes)
+        let mut torrent = de::from_bytes::<Torrent>(&input_bytes)?;
+        Ok(torrent)
+         
+        /* 
+            This code will not work correctly since if it does not have a field it will not
+            be incorporated into the struct
+        
+            let mut info = ser::to_bytes::<Info>(&torrent.info)?;
+            torrent.info.info_hash = Some(sha1(&info));
+            
+            /////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////            
+            
+            this code will regex search the file for the dictionary, hash it,
+            and then insert it into the torrent struct. Shit does not currently work
+            as part of the file is binary encoded.
+
+            let re = Regex::new("[0-9]:infod").unwrap();
+            let result = re.find(&input_bytes);
+
+            match result {
+                Some(x_plus_one) => {
+                    println!{"\n\n\nmade it"}
+                    let info_dict = input_bytes.get(x_plus_one.end()-1..x_plus_one.end()+50);
+                        dbg!{String::from_utf8(info_dict.unwrap().to_vec())};
+
+                    match info_dict{
+                        Some(to_hash)=>{
+                            let hash= sha1(to_hash);
+                            torrent.info.info_hash = Some(hash);
+
+                        }
+                        None => ()
+                    }
+
+                },
+                None => ()
+            }
+
+            Ok(torrent)
+            */
 
     }
     pub fn new_file(filename: &str) -> Result<Torrent, serde_bencode::Error> {
@@ -187,7 +281,6 @@ impl Torrent{
                 let bencoded = self.to_bencode();
                 let bytes = bencoded.to_bytes()?;
 
-
                 hasher.input(&bytes);
                 Ok(hasher.result_str())
             }
@@ -204,10 +297,10 @@ impl ToBencode for Torrent {
 
 #[derive(Debug, Deserialize)]
 pub struct Announce {
-    pub complete: u32,
-    pub incomplete: u32,
-    pub downloaded: u32, 
-    pub interval: u64,
+    pub complete: i64,
+    pub incomplete: i64,
+    pub downloaded: i64, 
+    pub interval: i64,
     #[serde(default)]
     pub peers: Option<ByteBuf>,
     #[serde(default)]
@@ -226,25 +319,7 @@ impl Announce {
     }
 }
 
-
-#[derive(Debug, Deserialize)]
-pub struct TestInfo {
-    length : Option<u64>,
-    name: String,
-    #[serde(rename= "piece length")]
-    piece_length: u64
-}
-
-impl TestInfo{
-    pub fn new(filename : &str) -> Result<TestInfo, serde_bencode::Error> {
-        let mut buffer = Vec::new();
-        let mut file = std::fs::File::open(filename).unwrap();
-        file.read_to_end(&mut buffer);
-        de::from_bytes::<TestInfo>(&buffer)
-    }
-}
-
-pub fn sha1(bytes: &Vec<u8>) -> String {
+pub fn sha1(bytes: &[u8]) -> String {
         let mut hasher = crypto::sha1::Sha1::new();
         hasher.input(&bytes);
         return hasher.result_str();

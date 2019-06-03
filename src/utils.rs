@@ -94,12 +94,12 @@ pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn get_unix_time() -> u64 {
+pub fn get_unix_time() -> i64 {
 
     return SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs();
+        .as_secs() as i64;
 }
 
 pub fn serialize_all_torrents(directory: &str) ->  Vec<read_torrent::Torrent>{
@@ -119,4 +119,41 @@ pub fn serialize_all_torrents(directory: &str) ->  Vec<read_torrent::Torrent>{
 
     return dir;
     
+}
+
+
+pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
+
+    let dir : Vec<_> = std::fs::read_dir(dir_to_read).unwrap()
+        .map(|x| x.unwrap().path())
+        .map(|x|{
+            let txt_path = x.to_str().unwrap();
+            let contents = read_torrent::Torrent::new_file(&txt_path).unwrap();
+            (txt_path.to_string(), contents)
+        })
+        .collect();
+
+    let mut good = 0;
+    let mut bad : Vec<String>= Vec::new();
+
+    for (filename, mut torrent) in dir {
+        let period = filename.find(".").unwrap();
+        let hash = filename.get(45..period).unwrap();
+        if hash == torrent.info_hash().unwrap(){
+            good+=1;
+        }
+        else {
+            println!{"{}\n{}\n do not match \n\n", hash, torrent.info_hash().unwrap()}
+            bad.push(hash.to_string());
+
+        }
+    }
+
+    println!{"good hashes:\t {}\tbad hashes:\t {}", good, bad.len()}
+    if bad.len() >0{
+        dbg!{bad};
+    }
+
+    
+    // return dir;
 }
