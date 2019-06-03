@@ -6,14 +6,22 @@ use std::io::prelude::*;
 use crate::read_torrent::{Torrent, Announce};
 use super::url_encoding;
 
+use hashbrown::HashSet;
+
 use super::super::utils;
 
 use super::super::error::*;
 // use super::super::error::{Error, AnnounceErrors, RssErrors, TorrentErrors };
 macro_rules! parse {
-	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident) => {
+	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident, $previous:ident) => {
 		match $func(&$parse_item){
 			Ok(info_hash) => {
+
+				if $previous.contains(info_hash) {
+					println!{"skipping torrent {}", info_hash}
+					continue
+				}
+
 				match utils::download_torrent($parse_item.link(), &info_hash) {
 					Ok(torrent) => {
 						match AnnounceComponents::new(torrent.announce, info_hash.to_string(), torrent.creation_date){
@@ -32,7 +40,7 @@ macro_rules! parse {
 // download xml data from a url as well as their associated torrents
 // return a vector of structs required to make announcements
 // will only Error if the provided url is incorrect
-pub fn get_xml(url: &str) -> Result<Data, Error> {
+pub fn get_xml(url: &str, previous: &HashSet<String>) -> Result<Data, Error> {
 
 	//TODO: move this to a lazy_static!{}
 	let temp_folder : &'static str = r"C:\Users\Brooks\github\nyaa_tracker\temp";
@@ -62,13 +70,15 @@ pub fn get_xml(url: &str) -> Result<Data, Error> {
 		let current_item = items.remove(0);
 
 		if url.contains(".si"){
-			parse!(nyaa_si_hash, current_item, good_data, error_data)
+			parse!(nyaa_si_hash, current_item, good_data, error_data, previous)
 		}
-		else if url.contains("pantsu.cat"){
-			parse!(nyaa_pantsu_hash,current_item, good_data, error_data)
-		}
+		// // else if url.contains("pantsu.cat"){
+		// // 	parse!(nyaa_pantsu_hash, current_item, previous,  good_data, error_data)
+		// // }
+		// else {
+		// 	panic!("RSS url is not correct. fix that shit")
+		// }
 
-		break
 	}
 
 	return Ok(Data::new(good_data, error_data))
@@ -231,7 +241,7 @@ fn nyaa_si_hash <'a>(item: &'a rss::Item) -> Result<&'a str, Error>{
 
 fn nyaa_pantsu_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
 	let link = item.link();
-
+	println!{""}
 	match link {
 		Some(data) =>{
 			return utils::content_after_last_slash(&data)

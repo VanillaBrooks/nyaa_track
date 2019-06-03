@@ -7,7 +7,10 @@ use super::error::{Error, AnnounceErrors, RssErrors, TorrentErrors };
 use std::time::{SystemTime, UNIX_EPOCH};
 use super::read_torrent;
 
+use hashbrown::HashSet;
 use super::read_torrent::{Torrent, Announce};
+
+
 // TODO: configure client pooling
 // probably want to turn this thing into a struct
 pub fn download_torrent(url: Option<&str>, save_name: &str) -> Result<Torrent, Error> {
@@ -47,7 +50,8 @@ pub fn content_after_last_slash<'a> (url: &'a str) -> Result<&'a str, Error> {
 	
 	let mut last = 0;
 	for i in 0..url.len()-1 {
-		if url.get(i..i+1).unwrap() == "/" {
+        let k = url.get(i..i+1).unwrap();
+		if k== "/" || k ==r"\" {
 			last = i;
 		}
 	}
@@ -57,6 +61,21 @@ pub fn content_after_last_slash<'a> (url: &'a str) -> Result<&'a str, Error> {
         None => Err(Error::SliceError("did not contain a slash. you fucked up somewhere".to_string()))
     }
 }
+
+
+// asssumes it is only filename and .torrent with no extra directory info
+pub fn content_before_dot_torrent<'a>(input: &'a str) -> Result<&'a str, Error>{
+
+    match input.find(".") {
+        Some(index) => {
+            match input.get(0..index){
+                Some(x)=> Ok(x),
+                None =>  Err(Error::SliceError("indexes of slice invalud".to_string()))
+            }
+        },
+        None => Err(Error::SliceError("could not slice .torrent".to_string()))
+    }
+} 
 
 pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
 
@@ -103,58 +122,81 @@ pub fn get_unix_time() -> i64 {
         .as_secs() as i64;
 }
 
-pub fn serialize_all_torrents(directory: &str) ->  Vec<read_torrent::Torrent>{
+fn serialize_all_torrents(directory: &str) ->  Vec<(String, Result<read_torrent::Torrent, serde_bencode::Error>)>{
     let dir : Vec<_>= std::fs::read_dir(directory)
         .unwrap()
-        .map(|x| 
-        read_torrent::Torrent::new_file(
-                x.unwrap()
-                .path()
-                .to_str()
-                .unwrap()
-            )
-        )
-        .filter(|torrent| torrent.is_ok())
-        .map(|ok_torrent| ok_torrent.unwrap())
-        .collect();
-
-    return dir;
-    
-}
-
-
-pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
-
-    let dir : Vec<_> = std::fs::read_dir(dir_to_read).unwrap()
         .map(|x| x.unwrap().path())
-        .map(|x|{
-            let txt_path = x.to_str().unwrap();
-            let contents = read_torrent::Torrent::new_file(&txt_path).unwrap();
-            (txt_path.to_string(), contents)
+        .map(|x| {
+            let text_path = x.to_str().unwrap();
+            let mut torrent = read_torrent::Torrent::new_file(&text_path);
+            (text_path.to_string(), torrent)
         })
         .collect();
 
-    let mut good = 0;
-    let mut bad : Vec<String>= Vec::new();
-
-    for (filename, mut torrent) in dir {
-        let period = filename.find(".").unwrap();
-        let hash = filename.get(45..period).unwrap();
-        if hash == torrent.info_hash().unwrap(){
-            good+=1;
-        }
-        else {
-            println!{"{}\n{}\n do not match \n\n", hash, torrent.info_hash().unwrap()}
-            bad.push(hash.to_string());
-
-        }
-    }
-
-    println!{"good hashes:\t {}\tbad hashes:\t {}", good, bad.len()}
-    if bad.len() >0{
-        dbg!{bad};
-    }
-
-    
-    // return dir;
+    return dir;
 }
+
+pub fn torrents_with_hashes(directory: &str) -> Vec<read_torrent::Torrent> {
+    let mut torrents = serialize_all_torrents(directory);
+    let mut results = Vec::with_capacity(torrents.len());
+
+    torrents.into_iter().filter((|(x, y)| y.is_ok()))
+        .for_each(|(x, y)|{
+            let a = content_after_last_slash(&x).unwrap();
+            let b = content_before_dot_torrent(&a).unwrap();
+
+            match y {
+                Ok(mut torrent) => {
+                    torrent.set_info_hash(b);
+                    results.push(torrent);
+                    },
+                Err(_) => ()
+            }
+            
+        });
+
+    results
+}
+
+pub fn info_hash_set(directory: &str) -> HashSet<String> {
+    let mut hash_set : HashSet<String>= HashSet::new();
+
+    torrents_with_hashes(directory)
+        .into_iter()
+        .for_each(|mut x| {
+            hash_set.insert(x.info_hash().unwrap());
+        });
+
+    return hash_set;
+}
+
+
+
+// pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
+
+//     let dir : Vec<_> = serialize_all_torrents(dir_to_read);
+
+//     println!{"made it"}
+
+//     let mut good = 0;
+//     let mut bad : Vec<String>= Vec::new();
+
+//     for (filename, mut torrent) in dir {
+//         let hash = content_before_dot_torrent(&filename).unwrap();
+
+//         if hash == torrent.info_hash().unwrap(){
+//             good+=1;
+//         }
+//         else {
+//             println!{"{}\n{}\n do not match \n\n", hash, torrent.info_hash().unwrap()}
+//             bad.push(hash.to_string());
+
+//         }
+//     }
+
+//     println!{"good hashes:\t {}\tbad hashes:\t {}", good, bad.len()}
+//     if bad.len() >0{
+//         dbg!{bad};
+//     }
+
+// }

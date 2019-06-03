@@ -1,12 +1,12 @@
 use serde;
-// use serde::Deserialize;
 
 use serde_derive::{self, Serialize, Deserialize};
 
 use serde_bytes::{self, ByteBuf};
 
 use serde_bencode;
-use serde_bencode::{de, ser};
+use serde_bencode::de;
+// use serde_bencode::ser;
 
 use std::io::{self, Read};
 
@@ -21,17 +21,28 @@ use bencode::util::ByteString;
 use std::fs;
 use std::path::Path;
 
-use regex::bytes::Regex;
+// use regex::bytes::Regex;
 
 
 
-#[derive(Debug, Deserialize)]
-pub struct Node(String, i64);
+// #[derive(Debug, Deserialize)]
+// pub struct Node(String, i64);
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct File {
+    #[serde(default)]
+    ed2k: Option<ByteBuf>,
+
+    #[serde(default)]
+    filehash: Option<ByteBuf>,
+
     pub length: i64,
     path: Vec<String>,
+
+    #[serde(rename="path.utf-8")]
+    #[serde(default)]
+    utf8path: Option<Vec<String>>,
+
     #[serde(default)]
     md5sum: Option<String>,
 }
@@ -39,15 +50,15 @@ pub struct File {
 impl ToBencode for File {
     fn to_bencode(&self) -> Bencode{
         let mut m = BTreeMap::new();
-        // println!{"length"}
+
         m.insert(ByteString::from_str("length"), self.length.to_bencode());
-        // println!{"path"}
+
         m.insert(ByteString::from_str("path"), self.path.to_bencode());
 
         if self.md5sum.is_some(){
-            // println!{":::md5"}
             m.insert(ByteString::from_str("md5sum"), self.md5sum.clone().unwrap().to_bencode());
         }
+
         Bencode::Dict(m)
     }
 }
@@ -61,7 +72,6 @@ pub struct Info {
     #[serde(rename="file-media")]
     #[serde(default)]
     filemedia : Option<Vec<i64>>,
-
 
     #[serde(default)]
     ed2k: Option<ByteBuf>,
@@ -110,9 +120,12 @@ impl Info {
     pub fn new_bytes(bytes: &Vec<u8>) -> Result<Info, serde_bencode::Error> {
         de::from_bytes::<Info>(&bytes)
     }
+    pub fn set_info_hash(&mut self, input: &str){
+        self.info_hash = Some(input.to_string());
+    }
 }
 
-// todo: macro this shit
+// // todo: macro this shit
 impl ToBencode for Info {
     fn to_bencode(&self) -> Bencode {
         // println!{"\n\n\n\nbencoding\n\n\n\n"}
@@ -187,6 +200,7 @@ impl ToBencode for Info {
     }
 }
 
+//TODO fix nodes
 #[derive(Debug, Deserialize)]
 pub struct Torrent {
     pub info: Info,
@@ -195,7 +209,7 @@ pub struct Torrent {
     pub announce: Option<String>,
     
     #[serde(default)]
-    nodes: Option<Vec<Node>>,
+    nodes: Option<Vec<String>>,
     
     #[serde(default)]
     encoding: Option<String>,
@@ -271,6 +285,7 @@ impl Torrent{
         file.read_to_end(&mut buffer);
         Torrent::new_bytes(&buffer)
     }
+
     pub fn info_hash(&mut self) -> Result<String, std::io::Error> {
         match &self.info.info_hash{
             
@@ -286,6 +301,11 @@ impl Torrent{
             }
         }
     }
+    
+    pub fn set_info_hash(&mut self, input: &str) {
+        self.info.set_info_hash(input);
+    }
+
 }
 
 impl ToBencode for Torrent {

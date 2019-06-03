@@ -4,6 +4,10 @@ use read_torrent::Torrent;
 pub mod requests;
 pub mod error;
 pub mod utils;
+pub mod database;
+
+// use regex::Regex;
+use regex::bytes::Regex;
 
 use error::Error;
 
@@ -12,8 +16,16 @@ extern crate lazy_static;
 
 use requests::rss_parse::{self, get_xml, AnnounceComponents};
 use requests::url_encoding::{Url, hex_to_char};
-// use hashbrown::HashMap;
+use hashbrown::HashMap;
 
+use std::io::prelude::*;
+use std::fs::File;
+
+use bencode::Bencode;
+use bencode::ToBencode;
+use serde_urlencoded::ser;
+
+use hashbrown::HashSet;
 
 fn create_torrent(path: &str) ->() {
 	let k = Torrent::new_file(path);
@@ -27,14 +39,6 @@ fn create_torrent(path: &str) ->() {
 	}
 }
 
-use std::io::prelude::*;
-use std::fs::File;
-
-use bencode::Bencode;
-use bencode::ToBencode;
-use serde_urlencoded::ser;
-
-
 fn write_torrent(read: &str, write: &str) -> Result<(), Error> {
     let mut torrent = read_torrent::Torrent::new_file(&read)?;
 	let x = torrent.to_bencode().to_bytes()?;
@@ -45,7 +49,6 @@ fn write_torrent(read: &str, write: &str) -> Result<(), Error> {
 	Ok(())
 
 }
-
 
 fn read_data (loc: &str ) -> Result<(), Error> {
 	let mut buffer = Vec::new();
@@ -60,17 +63,40 @@ fn read_data (loc: &str ) -> Result<(), Error> {
 	Ok(())
 }
 
-//6f7421ac8957e4a20b971d8839707cc58e55615a
 
-fn main() {
-    let mut git_torrents = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
-    git_torrents.push_str("1147506.torrent");
-
-
-	let nyaa = "https://nyaa.si/?page=rss";
-	let data = get_xml(nyaa);
-	dbg!{data};
+fn test_funct(instr: &str) -> Result<String, String>{
+	Ok("test".to_string())
 }
 
 
-//8463057ea30edd86f3968c57ca4658090c616382
+const torrents_dir : &str= r"C:\Users\Brooks\github\nyaa_tracker\torrents\";
+const si_rss : &str = r"https://nyaa.si/?page=rss";
+const pantsu_rss : &str = r"https://nyaa.pantsu.cat/feed?";
+
+
+fn main() {
+
+	let previous = utils::info_hash_set(torrents_dir);
+	let ans = get_xml(&si_rss, &previous);
+	// let  ans =get_xml(&pantsu_rss, &previous);
+
+	// let ans = previous.contains("tset");
+	dbg!{ans};
+	
+	
+	// let read = "C:\\Users\\Brooks\\github\\nyaa_tracker\\torrents";
+	// let set =utils::info_hash_set(&torrents_dir);
+	// dbg!{set};
+	// let k = read_torrent::Torrent::new_file(&read);
+	// dbg!{k.unwrap().info};
+
+
+	// let k =utils::torrents_with_hashes("C:\\Users\\Brooks\\github\\nyaa_tracker\\torrents\\");
+	// dbg!{&k[0]};
+
+	// utils::check_hashes(r"C:\Users\Brooks\github\nyaa_tracker\torrents");
+	// let x = "test_str";
+	// parse!(test_funct, x);
+
+}
+
