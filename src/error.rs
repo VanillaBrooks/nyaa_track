@@ -49,7 +49,8 @@ pub enum AnnounceErrors{
 #[derive(Debug)]
 pub enum RssErrors {
 	RawRssError(rss::Error),
-	InfoHashFetch(&'static str)
+	InfoHashFetch(&'static str),
+	RssUrlInvalid
 }
 #[derive(Debug)]
 pub enum TorrentErrors {

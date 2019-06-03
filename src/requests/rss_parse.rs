@@ -10,6 +10,24 @@ use super::super::utils;
 
 use super::super::error::*;
 // use super::super::error::{Error, AnnounceErrors, RssErrors, TorrentErrors };
+macro_rules! parse {
+	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident) => {
+		match $func(&$parse_item){
+			Ok(info_hash) => {
+				match utils::download_torrent($parse_item.link(), &info_hash) {
+					Ok(Torrent) => {
+						match AnnounceComponents::new(Torrent.announce, info_hash, Torrent.creation_date){
+							Ok(announce) => $good_data.push(announce),
+							Err(announce_err) => $error_data.push(announce_err) // store annouce error
+						}
+					},
+					Err(link_error) => $error_data.push(link_error)// store link error
+				}
+			},
+			Err(error) => $error_data.push(error)
+		}
+	};
+}
 
 // download xml data from a url as well as their associated torrents
 // return a vector of structs required to make announcements
@@ -43,30 +61,13 @@ pub fn get_xml(url: &str) -> Result<Data, Error> {
 		println!{"{}", i}
 		let current_item = items.remove(0);
 		// dbg!{nyaa_hash_from_xml(current_item)};
-		
-		match nyaa_hash_from_xml(&current_item) {
-			Ok(info_hash) => {
-				match utils::download_torrent(current_item.link(), &info_hash) {
-					Ok(Torrent) => {
-						match AnnounceComponents::new(Torrent.announce, info_hash, Torrent.creation_date) {
-							Ok(announce) => good_data.push(announce),
-							Err(announce_err)=> {
-								println!{"there was a problem with the announce link {:?}", announce_err};
-								error_data.push(announce_err);
-							}
-						}
-					}
-					Err(link_error) =>{
-						println!{"there was an error with the torrent link {:?}", link_error}
-						error_data.push(link_error);
-					}
-				}
-			}
-			Err(error) => {
-				println!{"could not find info hash from rss feed {:?}", error}
-				error_data.push(error);
-			}
+
+		if url.contains(".si"){
+			parse!(nyaa_si_hash, current_item, good_data, error_data)
 		}
+		// else if url.contains("pantsu.cat"){
+		// 	parse!(nyaa_pantsu_hash,current_item)
+		// }
 	}
 
 	return Ok(Data::new(good_data, error_data))
@@ -199,7 +200,7 @@ impl Data {
 
 
 // do this since ? does not work w/ Option<T>
-fn nyaa_hash_from_xml(item: &rss::Item) -> Result<String, Error>{
+fn nyaa_si_hash(item: &rss::Item) -> Result<String, Error>{
 	let ext = item.extensions();
 
 	match ext.get("nyaa"){
@@ -227,3 +228,6 @@ fn nyaa_hash_from_xml(item: &rss::Item) -> Result<String, Error>{
 }
 
 
+fn nyaa_pantsu_hash(item: &rss::Item) -> Result<String, Error> {
+	unimplemented!()
+}
