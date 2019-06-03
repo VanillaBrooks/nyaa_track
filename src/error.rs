@@ -8,7 +8,8 @@ pub enum Error{
 	Rss(RssErrors),
 	UrlError,
 	Torrent(TorrentErrors),
-	Announce(AnnounceErrors)
+	Announce(AnnounceErrors),
+	SliceError(String)
 }
 
 impl From<reqwest::Error> for Error{
@@ -50,7 +51,8 @@ pub enum AnnounceErrors{
 pub enum RssErrors {
 	RawRssError(rss::Error),
 	InfoHashFetch(&'static str),
-	RssUrlInvalid
+	RssUrlInvalid,
+	CouldNotReadRss
 }
 #[derive(Debug)]
 pub enum TorrentErrors {

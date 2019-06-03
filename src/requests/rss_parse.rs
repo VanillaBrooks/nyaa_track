@@ -15,8 +15,8 @@ macro_rules! parse {
 		match $func(&$parse_item){
 			Ok(info_hash) => {
 				match utils::download_torrent($parse_item.link(), &info_hash) {
-					Ok(Torrent) => {
-						match AnnounceComponents::new(Torrent.announce, info_hash, Torrent.creation_date){
+					Ok(torrent) => {
+						match AnnounceComponents::new(torrent.announce, info_hash.to_string(), torrent.creation_date){
 							Ok(announce) => $good_data.push(announce),
 							Err(announce_err) => $error_data.push(announce_err) // store annouce error
 						}
@@ -53,21 +53,22 @@ pub fn get_xml(url: &str) -> Result<Data, Error> {
 	let channel = rss::Channel::read_from(std::io::BufReader::new(file))?;
 	let mut items = channel.items().to_vec();
 	
-
+	// storage vectors
 	let mut good_data: Vec<AnnounceComponents>= Vec::with_capacity(items.len());
 	let mut error_data: Vec<Error> = Vec::new();
 
 	for i in 0..items.len() {
-		println!{"{}", i}
+
 		let current_item = items.remove(0);
-		// dbg!{nyaa_hash_from_xml(current_item)};
 
 		if url.contains(".si"){
 			parse!(nyaa_si_hash, current_item, good_data, error_data)
 		}
-		// else if url.contains("pantsu.cat"){
-		// 	parse!(nyaa_pantsu_hash,current_item)
-		// }
+		else if url.contains("pantsu.cat"){
+			parse!(nyaa_pantsu_hash,current_item, good_data, error_data)
+		}
+
+		break
 	}
 
 	return Ok(Data::new(good_data, error_data))
@@ -84,7 +85,7 @@ pub struct AnnounceComponents {
 }
 
 // TODO: fix unwrap
-impl AnnounceComponents {
+impl AnnounceComponents{
 	pub fn new (url: Option<String>, hash: String, creation_date: Option<i64>) -> Result<AnnounceComponents, Error> {
 		// i think this .is_some() is not needed since the outer match
 		if url.is_some(){
@@ -200,7 +201,7 @@ impl Data {
 
 
 // do this since ? does not work w/ Option<T>
-fn nyaa_si_hash(item: &rss::Item) -> Result<String, Error>{
+fn nyaa_si_hash <'a>(item: &'a rss::Item) -> Result<&'a str, Error>{
 	let ext = item.extensions();
 
 	match ext.get("nyaa"){
@@ -211,7 +212,7 @@ fn nyaa_si_hash(item: &rss::Item) -> Result<String, Error>{
 						let ext_index = &extension_vec[0];
 						match ext_index.value() {
 							Some(infohash) => {
-								return Ok(infohash.to_string())
+								return Ok(infohash)
 							}
 							None => Err(Error::Rss(RssErrors::InfoHashFetch("No value field")))
 						}
@@ -228,6 +229,19 @@ fn nyaa_si_hash(item: &rss::Item) -> Result<String, Error>{
 }
 
 
-fn nyaa_pantsu_hash(item: &rss::Item) -> Result<String, Error> {
-	unimplemented!()
+fn nyaa_pantsu_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
+	let link = item.link();
+
+	match link {
+		Some(data) =>{
+			return utils::content_after_last_slash(&data)
+		},
+		None => return Err(Error::Rss(RssErrors::CouldNotReadRss))
+	}
+	
+	return Err(Error::UrlError)
+	// let data = utils::content_after_last_slash(&link);
+	// dbg!{data};
+	// unimplemented!()
+
 }

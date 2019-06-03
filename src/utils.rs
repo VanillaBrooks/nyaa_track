@@ -42,7 +42,7 @@ pub fn write_torrent_to_file(url: &str, data: &Vec<u8>, save_name: &str) -> Stri
 
 
 // BASE SAVE PATH
-fn parse_for_name(url: &str) -> String {
+pub fn content_after_last_slash<'a> (url: &'a str) -> Result<&'a str, Error> {
     let mut file_path: String = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
 	
 	let mut last = 0;
@@ -52,9 +52,10 @@ fn parse_for_name(url: &str) -> String {
 		}
 	}
 
-	let filename = &url.get(last+1..url.len()).unwrap();
-	file_path.push_str(&filename);
-    return file_path
+	match url.get(last+1..url.len()) {
+        Some(slice) => Ok(slice),
+        None => Err(Error::SliceError("did not contain a slash. you fucked up somewhere".to_string()))
+    }
 }
 
 pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
