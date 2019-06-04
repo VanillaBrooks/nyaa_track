@@ -5,10 +5,13 @@ use reqwest;
 use super::error::{Error, AnnounceErrors, RssErrors, TorrentErrors };
 
 use std::time::{SystemTime, UNIX_EPOCH};
-use super::read_torrent;
 
 use hashbrown::HashSet;
-use super::read_torrent::{Torrent, Announce};
+
+use super::read::{torrent, announce_components, announce_result};
+use torrent::Torrent;
+use announce_components::AnnounceComponents;
+use announce_result::AnnounceResult;
 
 
 // TODO: configure client pooling
@@ -122,13 +125,13 @@ pub fn get_unix_time() -> i64 {
 }
 
 // gives all torrents in directory (good and bad) and the path to them
-fn serialize_all_torrents(directory: &str) ->  Vec<(String, Result<read_torrent::Torrent, Error>)>{
+fn serialize_all_torrents(directory: &str) ->  Vec<(String, Result<Torrent, Error>)>{
     let dir : Vec<_>= std::fs::read_dir(directory)
         .unwrap()
         .map(|x| x.unwrap().path())
         .map(|x| {
             let text_path = x.to_str().unwrap();
-            let torrent = read_torrent::Torrent::new_file(&text_path);
+            let torrent = Torrent::new_file(&text_path);
             (text_path.to_string(), torrent)
         })
         .collect();
@@ -138,7 +141,7 @@ fn serialize_all_torrents(directory: &str) ->  Vec<(String, Result<read_torrent:
 
 
 // returns ONLY GOOD torrents with their info hashes manually inserted from tracker
-pub fn torrents_with_hashes(directory: &str) -> Vec<read_torrent::Torrent> {
+pub fn torrents_with_hashes(directory: &str) -> Vec<Torrent> {
     let torrents = serialize_all_torrents(directory);
     let mut results = Vec::with_capacity(torrents.len());
 
@@ -162,7 +165,7 @@ pub fn torrents_with_hashes(directory: &str) -> Vec<read_torrent::Torrent> {
 
 //TODO: compose this function with `torrents_with_hashes`
 // filter all torrents to only be nyaa.si announce URLS
-pub fn nyaa_si_announces(directory: &str) -> Vec<read_torrent::AnnounceComponents>{
+pub fn nyaa_si_announces(directory: &str) -> Vec<AnnounceComponents>{
     let mut all_torrents = torrents_with_hashes(directory);
 
     // for i in all_torrents {
@@ -175,7 +178,7 @@ pub fn nyaa_si_announces(directory: &str) -> Vec<read_torrent::AnnounceComponent
     //         },
     //         None => continue
     //     }
-    //     let announce = read_torrent::AnnounceComponents::new(i.announce, i.info.info_hash.unwrap(), i.creation_date);
+    //     let announce = AnnounceComponents::new(i.announce, i.info.info_hash.unwrap(), i.creation_date);
     // }
 
     all_torrents.into_iter()
@@ -194,7 +197,7 @@ pub fn nyaa_si_announces(directory: &str) -> Vec<read_torrent::AnnounceComponent
         })
         .map(|mut x| {
             let k = x.info_hash();
-            read_torrent::AnnounceComponents::new(x.announce, k.unwrap(), x.creation_date)
+            AnnounceComponents::new(x.announce, k.unwrap(), x.creation_date)
             })
         .filter(|x| x.is_ok())
         .map(|x| x.unwrap())

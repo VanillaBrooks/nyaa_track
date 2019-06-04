@@ -3,7 +3,8 @@ use reqwest;
 use rss;
 use std::fs;
 use std::io::prelude::*;
-use crate::read_torrent::{Torrent, Announce, AnnounceComponents};
+use super::super::read::{announce_components::*, announce_result::*, torrent::*};
+// use crate::read_torrent::{Torrent, Announce, AnnounceComponents};
 use super::url_encoding;
 
 use hashbrown::HashSet;

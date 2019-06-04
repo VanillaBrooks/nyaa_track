@@ -1,13 +1,14 @@
-mod read_torrent;
-use read_torrent::Torrent;
+mod read;
+use read::{announce_components, announce_result, torrent};
+use announce_components::AnnounceComponents;
+use announce_result::AnnounceResult;
+use torrent::Torrent;
 
 pub mod requests;
 pub mod error;
 pub mod utils;
 pub mod database;
 
-// use regex::Regex;
-use regex::bytes::Regex;
 
 use error::Error;
 
@@ -25,7 +26,7 @@ use bencode::Bencode;
 use bencode::ToBencode;
 use serde_urlencoded::ser;
 
-// use hashbrown::HashSet;
+use hashbrown::HashSet;
 
 #[allow(dead_code)]
 fn create_torrent(path: &str) ->() {
@@ -42,7 +43,7 @@ fn create_torrent(path: &str) ->() {
 
 #[allow(dead_code)]
 fn write_torrent(read: &str, write: &str) -> Result<(), Error> {
-    let torrent = read_torrent::Torrent::new_file(&read)?;
+    let torrent = Torrent::new_file(&read)?;
 	let x = torrent.to_bencode().to_bytes()?;
 	let mut file = File::create(&write)?;
 
@@ -60,7 +61,7 @@ fn read_data (loc: &str ) -> Result<(), Error> {
 
 
 	file.read_to_end(&mut buffer)?;
-	let ans = read_torrent::sha1(&buffer);
+	let ans = torrent::sha1(&buffer);
 
 	dbg!{ans};
 	Ok(())
@@ -71,7 +72,7 @@ fn load_problem_hash(hash: &str)  {
 	let mut file = TORRENTS_DIR.clone().to_string();
 	file.push_str(&hash);
 	file.push_str(".torrent");
-	let torrent = read_torrent::Torrent::new_file(&file);
+	let torrent = Torrent::new_file(&file);
 
 	match torrent {
 		Ok(x)=> {
@@ -89,7 +90,6 @@ const PANTSU_RSS : &str = r"https://nyaa.pantsu.cat/feed?";
 #[allow(dead_code)]
 const TEST_FILE :&str=  r"C:\Users\Brooks\Downloads\test.txt";
 
-use hashbrown::HashSet;
 fn main() {
 
 	// let mut previous = utils::info_hash_set(TORRENTS_DIR);
@@ -99,12 +99,12 @@ fn main() {
 	// println!{"starting pantsu"};
 	// let ans =get_xml(&PANTSU_RSS, &mut previous);
 
-	let mut announces = utils::nyaa_si_announces(TORRENTS_DIR);
+	// let mut announces = utils::nyaa_si_announces(TORRENTS_DIR);
 
-	for i in 1..announces.len(){
-		dbg!{&announces[i].info_hash};
-		dbg!{&announces[i].announce().unwrap()};
-	}
+	// for i in 1..announces.len(){
+	// 	dbg!{&announces[i].info_hash};
+	// 	dbg!{&announces[i].announce().unwrap()};
+	// }
 
 
 	// let read = "C:\\Users\\Brooks\\github\\nyaa_tracker\\torrents\\f8e64792b00bee14249ba5cf18fb6d7b71b0fc58.torrent";

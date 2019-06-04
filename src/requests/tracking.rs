@@ -1,9 +1,11 @@
 use std::time;
 
-use super::super::read_torrent;
+use super::super::read::{announce_components, announce_result};
+use announce_result::AnnounceResult;
+use announce_components::AnnounceComponents;
 
-pub fn announce_components(components: &mut Vec<read_torrent::AnnounceComponents>) -> Vec<read_torrent::Announce> {
-	let mut announce_results : Vec<read_torrent::Announce> = Vec::with_capacity(components.len());
+pub fn announce_components(components: &mut Vec<AnnounceComponents>) -> Vec<AnnounceResult> {
+	let mut announce_results : Vec<AnnounceResult> = Vec::with_capacity(components.len());
 
 	for item in components {
 		match item.announce() {
@@ -18,6 +20,6 @@ pub fn announce_components(components: &mut Vec<read_torrent::AnnounceComponents
 }
 
 
-pub fn update_database(stats: &Vec<read_torrent::Announce>) -> () {
+pub fn update_database(stats: &Vec<AnnounceResult>) -> () {
 	unimplemented!()
 }
