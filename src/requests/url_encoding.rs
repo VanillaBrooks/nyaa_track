@@ -1,30 +1,27 @@
 use hashbrown::HashMap;
 
-#[macro_use]
-use lazy_static;
-
 // expects string to be lowercase
 pub fn hex_to_char(input: &str) -> String {
     // let input = input.to_uppercase();
     let mut input_clone = String::with_capacity(20);
 
     lazy_static!{
-        static ref hex : HashMap<String, String> = _hex_to_char();
-        static ref percent_encode: HashMap<String, String> = reserved_characters();
-        static ref indexes :  Vec<usize> = (0..40).step_by(2).collect();
+        static ref HEX : HashMap<String, String> = _hex_to_char();
+        static ref PERCENT_ENCODE: HashMap<String, String> = reserved_characters();
+        static ref INDEXES :  Vec<usize> = (0..40).step_by(2).collect();
     }
 
-    for i in indexes.iter(){
+    for i in INDEXES.iter(){
         let chars = input.get(*i..*i+2).unwrap();
         
         // println!{"chars are {}", chars}
 
-        match hex.get(chars) {
-            // the two character combination matches something in hex
+        match HEX.get(chars) {
+            // the two character combination matches something in HEX
             Some(x) => { 
-                // println!{"hex encoding found for character {}", x}
+                // println!{"HEX encoding found for character {}", x}
                 //get escape character
-                match percent_encode.get(x) {
+                match PERCENT_ENCODE.get(x) {
                     // it has an escape character, push the escaped version
                     Some(escape_char) => {
                         // println!{"escape character found {}", escape_char}
@@ -37,9 +34,9 @@ pub fn hex_to_char(input: &str) -> String {
                     }
                 }
             },
-            // The hex combination does not mean anything, push %<chars>
+            // The HEX combination does not mean anything, push %<chars>
             None => {
-                // println!{"no hex conversion for that character"}
+                // println!{"no HEX conversion for that character"}
                 input_clone.push_str("%");
                 input_clone.push_str(chars);
             }

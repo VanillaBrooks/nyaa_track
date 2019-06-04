@@ -18,9 +18,9 @@ pub fn download_torrent(url: Option<&str>, save_name: &str) -> Result<Torrent, E
 	if url.is_some(){
 		let raw_url = url.unwrap();
 		let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
-		let k = reqwest::get(raw_url)?.read_to_end(&mut buffer)?;
+		reqwest::get(raw_url)?.read_to_end(&mut buffer)?;
 		
-		write_torrent_to_file(&raw_url, &buffer, &save_name);
+		write_torrent_to_file(&buffer, &save_name)?;
 		let t = Torrent::new_bytes(&buffer);
 	
 		Ok(t?)
@@ -32,21 +32,20 @@ pub fn download_torrent(url: Option<&str>, save_name: &str) -> Result<Torrent, E
 }
 
 // generate a .torrent file for the data
-pub fn write_torrent_to_file(url: &str, data: &Vec<u8>, save_name: &str) -> String {
+pub fn write_torrent_to_file(data: &Vec<u8>, save_name: &str) -> Result<String, Error> {
     let mut base = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
     base.push_str(save_name);
     base.push_str(".torrent");
 
-	let mut file = std::fs::File::create(&base).unwrap();
-	file.write_all(&data);
+	let mut file = std::fs::File::create(&base)?;
+	file.write_all(&data)?;
 
-    return base
+    return Ok(base)
 }
 
 
 // BASE SAVE PATH
 pub fn content_after_last_slash<'a> (url: &'a str) -> Result<&'a str, Error> {
-    let mut file_path: String = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
 	
 	let mut last = 0;
 	for i in 0..url.len()-1 {
@@ -90,7 +89,7 @@ pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
 
     println!{"f1 len:\t{}\tf2 len:\t{}",buffer1.len(), buffer2.len()}
 
-    let mut len = 0;
+    let len;                                // might be the source of a bug here
     if buffer1.len()  > f2.len() {
         len = buffer2.len()
     }
@@ -122,13 +121,14 @@ pub fn get_unix_time() -> i64 {
         .as_secs() as i64;
 }
 
-fn serialize_all_torrents(directory: &str) ->  Vec<(String, Result<read_torrent::Torrent, serde_bencode::Error>)>{
+// gives all torrents in directory (good and bad) and the path to them
+fn serialize_all_torrents(directory: &str) ->  Vec<(String, Result<read_torrent::Torrent, Error>)>{
     let dir : Vec<_>= std::fs::read_dir(directory)
         .unwrap()
         .map(|x| x.unwrap().path())
         .map(|x| {
             let text_path = x.to_str().unwrap();
-            let mut torrent = read_torrent::Torrent::new_file(&text_path);
+            let torrent = read_torrent::Torrent::new_file(&text_path);
             (text_path.to_string(), torrent)
         })
         .collect();
@@ -136,11 +136,13 @@ fn serialize_all_torrents(directory: &str) ->  Vec<(String, Result<read_torrent:
     return dir;
 }
 
+
+// returns ONLY GOOD torrents with their info hashes manually inserted from tracker
 pub fn torrents_with_hashes(directory: &str) -> Vec<read_torrent::Torrent> {
-    let mut torrents = serialize_all_torrents(directory);
+    let torrents = serialize_all_torrents(directory);
     let mut results = Vec::with_capacity(torrents.len());
 
-    torrents.into_iter().filter((|(x, y)| y.is_ok()))
+    torrents.into_iter().filter((|(_, y)| y.is_ok()))
         .for_each(|(x, y)|{
             let a = content_after_last_slash(&x).unwrap();
             let b = content_before_dot_torrent(&a).unwrap();
@@ -158,6 +160,49 @@ pub fn torrents_with_hashes(directory: &str) -> Vec<read_torrent::Torrent> {
     results
 }
 
+//TODO: compose this function with `torrents_with_hashes`
+// filter all torrents to only be nyaa.si announce URLS
+pub fn nyaa_si_announces(directory: &str) -> Vec<read_torrent::AnnounceComponents>{
+    let mut all_torrents = torrents_with_hashes(directory);
+
+    // for i in all_torrents {
+    //     match &i.announce {
+    //         Some(ann_url) => {
+    //             if ann_url.contains("http") && ann_url.contains("nyaa"){
+    //                 ()
+    //             }
+    //             else{continue}
+    //         },
+    //         None => continue
+    //     }
+    //     let announce = read_torrent::AnnounceComponents::new(i.announce, i.info.info_hash.unwrap(), i.creation_date);
+    // }
+
+    all_torrents.into_iter()
+        .filter(|x| {           // make sure it has the url we are looking for
+            match &x.announce {
+                Some(ann_url) => {
+                    if ann_url.contains("http") && ann_url.contains("nyaa"){
+                        true
+                    }
+                    else {
+                        false
+                    }
+                },
+                None => false
+            }
+        })
+        .map(|mut x| {
+            let k = x.info_hash();
+            read_torrent::AnnounceComponents::new(x.announce, k.unwrap(), x.creation_date)
+            })
+        .filter(|x| x.is_ok())
+        .map(|x| x.unwrap())
+        .collect::<Vec<_>>()
+
+    // unimplemented!()
+}
+
 pub fn info_hash_set(directory: &str) -> HashSet<String> {
     let mut hash_set : HashSet<String>= HashSet::new();
 
@@ -172,31 +217,38 @@ pub fn info_hash_set(directory: &str) -> HashSet<String> {
 
 
 
-// pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
+pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
 
-//     let dir : Vec<_> = serialize_all_torrents(dir_to_read);
+    let dir : Vec<_> = serialize_all_torrents(dir_to_read);
 
-//     println!{"made it"}
+    println!{"made it"}
 
-//     let mut good = 0;
-//     let mut bad : Vec<String>= Vec::new();
+    let mut good = 0;
+    let mut bad : Vec<String>= Vec::new();
 
-//     for (filename, mut torrent) in dir {
-//         let hash = content_before_dot_torrent(&filename).unwrap();
+    for (filename,torrent) in dir {
+        // println!{"handling: {}", filename}
 
-//         if hash == torrent.info_hash().unwrap(){
-//             good+=1;
-//         }
-//         else {
-//             println!{"{}\n{}\n do not match \n\n", hash, torrent.info_hash().unwrap()}
-//             bad.push(hash.to_string());
+        match torrent{
+            Ok(mut torrent) =>{
+                let hash = content_before_dot_torrent(&filename).unwrap();
+                let hash = content_after_last_slash(&hash).unwrap();
 
-//         }
-//     }
+                if hash == torrent.info_hash().unwrap(){
+                    good+=1;
+                }
+                else {
+                    println!{"{}\n{}\n do not match \n\n", hash, torrent.info_hash().unwrap()}
+                    bad.push(hash.to_string());
+                }
+            }
+            Err(err) =>println!{"Error parsing torrent {} : {:?}", filename, err}
+        }
+    }
 
-//     println!{"good hashes:\t {}\tbad hashes:\t {}", good, bad.len()}
-//     if bad.len() >0{
-//         dbg!{bad};
-//     }
+    println!{"good hashes:\t {}\tbad hashes:\t {}", good, bad.len()}
+    if bad.len() >0{
+        dbg!{bad};
+    }
 
-// }
+}
