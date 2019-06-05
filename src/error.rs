@@ -57,5 +57,6 @@ pub enum RssErrors {
 #[derive(Debug)]
 pub enum TorrentErrors {
 	NoAnnounceUrl(String),
-	SerdeError(serde_bencode::Error)
+	SerdeError(serde_bencode::Error),
+	MissingName
 }

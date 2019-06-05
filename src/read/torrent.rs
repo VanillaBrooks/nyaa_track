@@ -147,6 +147,18 @@ impl Info {
     pub fn set_info_hash(&mut self, input: &str){
         self.info_hash = Some(input.to_string());
     }
+    pub fn name(&self) -> Result<String, Error> {
+        if self.utf8name.is_some() {
+            Ok(self.utf8name.clone().unwrap())
+        }
+        else if self.name.is_some() {
+            Ok(self.name.clone().unwrap())
+        }
+        else {
+            Err(Error::Torrent(TorrentErrors::MissingName))
+        }
+
+    }
 }
 
 // // todo: macro this shit

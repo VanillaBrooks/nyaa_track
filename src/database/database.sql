@@ -19,11 +19,10 @@
 CREATE TABLE info
 (
 	id SERIAL PRIMARY KEY,
-	info_hash char(40) NOT NULL,
+	info_hash char(40) NOT NULL UNIQUE,
 	announce_url varchar(80) NOT NULL,
 	creation_date BIGINT NOT NULL,
-	title text NOT NULL,
-	self_created_info bool NOT NULL
+	title text NOT NULL
 );
 
 CREATE TABLE stats

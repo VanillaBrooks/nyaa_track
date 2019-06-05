@@ -28,7 +28,7 @@ macro_rules! parse {
 				}
 				match utils::download_torrent($parse_item.link(), &info_hash) {
 					Ok(torrent) => {
-						match AnnounceComponents::new(torrent.announce, info_hash.to_string(), torrent.creation_date){
+						match AnnounceComponents::new(torrent.announce, info_hash.to_string(), torrent.creation_date, torrent.info.name().unwrap()){
 							Ok(announce) => $good_data.push(announce),
 							Err(announce_err) => $error_data.push(announce_err) // store annouce error
 						}

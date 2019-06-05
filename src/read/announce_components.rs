@@ -14,6 +14,7 @@ use super::announce_result::AnnounceResult;
 pub struct AnnounceComponents {
 	pub url : String,
 	pub info_hash: String,
+	pub title: String,
 	creation_date: i64,
 	announce_url: Option<String>,
 	interval: Option<i64>,
@@ -22,7 +23,7 @@ pub struct AnnounceComponents {
 
 // TODO: fix unwrap
 impl AnnounceComponents  {
-	pub fn new (url: Option<String>, hash: String, creation_date: Option<i64>) -> Result<AnnounceComponents, Error> {
+	pub fn new (url: Option<String>, hash: String, creation_date: Option<i64>, title: String) -> Result<AnnounceComponents, Error> {
 		// i think this .is_some() is not needed since the outer match
 		if url.is_some(){
 
@@ -35,6 +36,7 @@ impl AnnounceComponents  {
 			Ok(AnnounceComponents {url: url.unwrap(),
 								info_hash: hash, 
 								creation_date: date,
+								title: title,
 								announce_url: None,
 								interval: None,
 								last_announce: None})
@@ -82,11 +84,11 @@ impl AnnounceComponents  {
 						let mut buffer: Vec<u8> = Vec::with_capacity(150);
 						response.read_to_end(&mut buffer)?;
 						
-						let parse = AnnounceResult::new_bytes(&buffer)?;
-						self.interval = Some(parse.interval);
+						let parse = AnnounceResult::new_bytes(&buffer, self.info_hash.clone(), self.url.clone(), self.title.clone(), self.creation_date)?;
+						self.interval = Some(parse.data.interval);
 						self.last_announce = Some(std::time::Instant::now());
 
-						self.configure_next_announce(&parse.complete);
+						self.configure_next_announce(&parse.data.complete);
 
 						return Ok(parse);
 						

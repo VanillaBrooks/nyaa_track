@@ -197,7 +197,7 @@ pub fn nyaa_si_announces(directory: &str) -> Vec<AnnounceComponents>{
         })
         .map(|mut x| {
             let k = x.info_hash();
-            AnnounceComponents::new(x.announce, k.unwrap(), x.creation_date)
+            AnnounceComponents::new(x.announce, k.unwrap(), x.creation_date, x.info.name().unwrap())
             })
         .filter(|x| x.is_ok())
         .map(|x| x.unwrap())
