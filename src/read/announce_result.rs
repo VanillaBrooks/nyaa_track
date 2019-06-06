@@ -6,12 +6,12 @@ use super::super::error::*;
 use super::super::utils;
 
 
-pub struct AnnounceResult {
-    pub info_hash: String,
-    pub announce_url: String,
-    pub title: String,
+pub struct AnnounceResult <'a> {
+    pub info_hash: &'a String,
+    pub announce_url: &'a String,
+    pub title: &'a String,
     pub poll_time: i64,
-    pub creation_date: i64,
+    pub creation_date: &'a i64,
     pub data: AnnounceData
 }
 impl <'a> AnnounceResult <'a> {

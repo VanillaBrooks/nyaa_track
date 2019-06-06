@@ -102,9 +102,9 @@ fn main() {
 	let mut all_announce_components : Vec<AnnounceComponents>= Vec::new();
 	let mut previous = utils::info_hash_set(TORRENTS_DIR);
 
-	let mut file_announce_comp = utils::nyaa_si_announces_from_files(TORRENTS_DIR);
+	// let mut file_announce_comp = utils::nyaa_si_announces_from_files(TORRENTS_DIR);
 	let mut database_announces = database::pull_data::database_announce_components().unwrap();
-	all_announce_components.append(&mut file_announce_comp);
+	all_announce_components.append(&mut database_announces);
 
 	loop {
 		// pull rss from nyaa.si
