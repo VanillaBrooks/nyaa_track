@@ -8,15 +8,15 @@ use std::io::prelude::*;
 use super::super::error::*;
 
 
-pub struct AnnounceResult {
-    pub info_hash: String,
-    pub announce_url: String,
-    pub title: String,
-    pub creation_date: i64,
+pub struct AnnounceResult<'a> {
+    pub info_hash: &'a String,
+    pub announce_url: &'a String,
+    pub title: &'a String,
+    pub creation_date: &'a i64,
     pub data: AnnounceData
 }
-impl AnnounceResult{
-    pub fn new_bytes(input_bytes: &Vec<u8>, hash: String, url: String, title: String, date: i64) -> Result<AnnounceResult, Error>{
+impl <'a> AnnounceResult <'a> {
+    pub fn new_bytes(input_bytes: &Vec<u8>, hash: &'a String, url: &'a String, title: &'a String, date: &'a i64) -> Result<AnnounceResult<'a>, Error>{
         let data = AnnounceData::new_bytes(&input_bytes)?;
         let s = AnnounceResult{info_hash: hash, announce_url: url, data: data, title: title, creation_date: date};
         Ok(s)
