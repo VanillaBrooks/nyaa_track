@@ -3,6 +3,7 @@ use reqwest;
 use rss;
 use std::fs;
 use std::io::prelude::*;
+use std::time;
 use super::super::read::announce_components::AnnounceComponents;
 
 use hashbrown::HashSet;
@@ -13,7 +14,7 @@ use super::super::error::*;
 
 
 macro_rules! parse {
-	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident, $previous:ident) => {
+	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident, $previous:ident, $dl:ident) => {
 		match $func(&$parse_item){
 			Ok(info_hash) => {
 
@@ -24,7 +25,7 @@ macro_rules! parse {
 				else {
 					$previous.insert(info_hash.to_string());
 				}
-				match utils::download_torrent($parse_item.link(), &info_hash) {
+				match $dl.download($parse_item.link(), &info_hash) {
 					Ok(torrent) => {
 						match torrent.info.name() {
 							Ok(torrent_name) => {
@@ -76,15 +77,17 @@ pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error>
 	let mut good_data: Vec<AnnounceComponents>= Vec::with_capacity(items.len());
 	let mut error_data: Vec<Error> = Vec::new();
 
+	let downloader = utils::Downloader::new();
+
 	for _ in 0..items.len() {
 
 		let current_item = items.remove(0);
 
 		if url.contains(".si"){
-			parse!(nyaa_si_hash, current_item, good_data, error_data, previous)
+			parse!(nyaa_si_hash, current_item, good_data, error_data, previous, downloader)
 		}
 		else if url.contains("pantsu.cat"){
-			parse!(nyaa_pantsu_hash, current_item, good_data, error_data, previous)
+			parse!(nyaa_pantsu_hash, current_item, good_data, error_data, previous, downloader)
 		}
 		else {
 			panic!("RSS url is not correct. fix that shit")
@@ -103,6 +106,31 @@ pub struct Data  {
 impl Data{
 	fn new(good: Vec<AnnounceComponents>, bad : Vec<Error>) -> Data{ 
 		Data {good: good, bad: bad}
+	}
+}
+
+// timer for rss updates
+pub struct Timer <'a> {
+	last_check: time::Instant,
+	time_between: u32, // in seconds
+	pub url: &'a str
+}
+impl <'a>Timer <'a> {
+	pub fn new(between: u32, url: &'a str) -> Timer<'a> {
+		Timer{last_check: time::Instant::now(),
+			  time_between: between,
+			  url: url}
+	}
+	pub fn allow_check(&mut self) -> bool {
+		let now = time::Instant::now();
+		let elapsed = (now - self.last_check).as_secs() as u32;
+		if elapsed > self.time_between {
+			self.last_check = now;
+			true
+		}
+		else {
+			false
+		}
 	}
 }
 

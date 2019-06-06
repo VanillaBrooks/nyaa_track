@@ -16,28 +16,34 @@ use announce_components::AnnounceComponents;
 
 // TODO: configure client pooling
 // probably want to turn this thing into a struct
-pub fn download_torrent(url: Option<&str>, save_name: &str) -> Result<Torrent, Error> {
-	// dbg!{url};
-	if url.is_some(){
-        let raw_url = match url {
-            Some(url) => url,
-            None => { // TODO: log the error here
-                return Err(Error::UrlError)
-            }
-        };
+pub struct Downloader {
+    client: reqwest::Client
+}
+impl Downloader {
+    pub fn new() -> Downloader {
+        Downloader{client: reqwest::Client::new()}
+    }
+    pub fn download(&self, url: Option<&str>, save_name: &str) -> Result<Torrent, Error> {
+        if url.is_some(){
+            let raw_url = match url {
+                Some(url) => url,
+                None => { // TODO: log the error here
+                    return Err(Error::UrlError)
+                }
+            };
 
-		let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
-		reqwest::get(raw_url)?.read_to_end(&mut buffer)?;
-		
-		write_torrent_to_file(&buffer, &save_name)?;
-		let t = Torrent::new_bytes(&buffer);
-	
-		Ok(t?)
-	}
-	else{
-		Err(Error::UrlError)
-	}
-	
+            let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
+            self.client.get(raw_url).send()?.read_to_end(&mut buffer)?;
+            
+            write_torrent_to_file(&buffer, &save_name)?;
+            let t = Torrent::new_bytes(&buffer);
+        
+            Ok(t?)
+        }
+        else{
+            Err(Error::UrlError)
+        }
+    }
 }
 
 // generate a .torrent file for the data
