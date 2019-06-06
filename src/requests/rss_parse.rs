@@ -3,9 +3,7 @@ use reqwest;
 use rss;
 use std::fs;
 use std::io::prelude::*;
-use super::super::read::{announce_components::*, announce_result::*, torrent::*};
-// use crate::read_torrent::{Torrent, Announce, AnnounceComponents};
-use super::url_encoding;
+use super::super::read::announce_components::AnnounceComponents;
 
 use hashbrown::HashSet;
 
@@ -20,7 +18,7 @@ macro_rules! parse {
 			Ok(info_hash) => {
 
 				if $previous.contains(info_hash) {
-					println!{"skipping torrent {}", info_hash}
+					// println!{"skipping torrent {}", info_hash}
 					continue
 				}
 				else {
@@ -28,10 +26,15 @@ macro_rules! parse {
 				}
 				match utils::download_torrent($parse_item.link(), &info_hash) {
 					Ok(torrent) => {
-						match AnnounceComponents::new(torrent.announce, info_hash.to_string(), torrent.creation_date, torrent.info.name().unwrap()){
-							Ok(announce) => $good_data.push(announce),
-							Err(announce_err) => $error_data.push(announce_err) // store annouce error
-						}
+						match torrent.info.name() {
+							Ok(torrent_name) => {
+								match AnnounceComponents::new(torrent.announce, info_hash.to_string(), torrent.creation_date, torrent_name){
+									Ok(announce) => $good_data.push(announce),
+									Err(announce_err) => $error_data.push(announce_err) // store annouce error
+								}
+							},
+							Err(name_error) => $error_data.push(name_error)
+						} 
 					},
 					Err(link_error) => $error_data.push(link_error)// store link error
 				}
@@ -48,16 +51,17 @@ pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error>
 
 
 	//TODO: move this to a lazy_static!{}
-	println!{"creating temp folder"}
+	// println!{"creating temp folder"}
 	let temp_folder : &'static str = r"C:\Users\Brooks\github\nyaa_tracker\temp";
-	fs::create_dir(temp_folder);
+	match fs::create_dir(temp_folder){Ok(_)=> (), Err(_)=>()}
+
 
 	let mut path: String = temp_folder.to_string();
 	path.push_str(r"\");
 	path.push_str(&utils::get_unix_time().to_string());
 	path.push_str(".xml");
 
-	println!{"writing to file"}
+	// println!{"writing to file"}
 	// request xml data and read to file
 	let xml_data = reqwest::get(url)?.text()?;
 	let mut file = fs::File::create(&path)?;

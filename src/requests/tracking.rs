@@ -1,13 +1,14 @@
-use std::time;
-
 use super::super::read::{announce_components, announce_result};
 use announce_result::AnnounceResult;
 use announce_components::AnnounceComponents;
 
 use super::super::database;
 
+use super::super::error::*;
+
 pub fn announce_all_components(components: &mut Vec<AnnounceComponents>) -> Vec<AnnounceResult> {
 	let mut announce_results : Vec<AnnounceResult> = Vec::with_capacity(components.len()/10);
+	let start_len = components.len() as i32;
 
 	for item in components {
 		match item.announce() {
@@ -17,17 +18,36 @@ pub fn announce_all_components(components: &mut Vec<AnnounceComponents>) -> Vec<
 			Err(error) => () // TODO: log the error here
 		}
 	}
+	let res = announce_results.len() as i32;
 
+	println!{"Announce Results:\nInput Count:\t{}\nSuccessful Announces:\t{}\nBad Announces:\t{}",start_len, res, (start_len-res)}
 	return announce_results
 }
 
 
-pub fn update_database(stats: &Vec<AnnounceResult>) -> () {
-	let conn = database::connection::start().unwrap();				// FIX ME
-	let prepare_info = conn.prepare("INSERT INTO info (info_hash, announce_url, creation_date, title) VALUES ($1, $2, $3, $4)").unwrap();
-	let prepare_data = conn.prepare("INSERT INTO stats (stats_id, downloaded, seeding, incomplete) VALUES (id, $1, $2, $4) WHERE stats_id IN (SELECT id FROM info WHERE info_hash = $5").unwrap();
+pub fn update_database(stats: &Vec<AnnounceResult>) -> Result<(), Error> {
+	let conn = database::connection::start()?;
+	
+	let prepare_info = conn.prepare("INSERT INTO info (info_hash, announce_url, creation_date, title) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING").unwrap();
+	let prepare_data = conn.prepare("with ref_id as (select id from info where info_hash=$1 and announce_url =$2) insert into stats (stats_id, downloaded, seeding, incomplete, poll_time) values ((select * from ref_id), $3,$4,$5,$6)").unwrap();
+	
 	for res in stats{
-		prepare_info.execute(&[&res.info_hash, &res.announce_url, &res.creation_date, &res.title]);
-		prepare_data.execute(&[&res.data.downloaded, &res.data.complete, &res.data.incomplete, &res.info_hash]);
+
+		match prepare_info.execute(&[&res.info_hash, &res.announce_url, &res.creation_date, &res.title]){
+			Ok(_) => (),
+			Err(error) => () // TODO log error
+		}
+
+		match prepare_data.execute(&[&res.info_hash, &res.announce_url, &res.data.downloaded, &res.data.complete, &res.data.incomplete, &res.poll_time]) {
+			Ok(_) => (),
+			Err(error) => () // TODO: log error
+		}
+
 	}
+
+	Ok(())
 }
+
+    // pub complete: i64, //seeds
+    // pub incomplete: i64, // downloading now
+    // pub downloaded: i64,  // snatches

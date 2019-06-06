@@ -1,5 +1,4 @@
-
-
+use postgres;
 
 #[derive(Debug)]
 pub enum Error{
@@ -9,7 +8,8 @@ pub enum Error{
 	UrlError,
 	Torrent(TorrentErrors),
 	Announce(AnnounceErrors),
-	SliceError(String)
+	SliceError(String),
+	Postgres(postgres::error::Error)
 }
 
 impl From<reqwest::Error> for Error{
@@ -35,6 +35,11 @@ impl From<serde_bencode::Error> for Error {
 impl From<serde_urlencoded::ser::Error> for Error {
 	fn from(error: serde_urlencoded::ser::Error) -> Error {
 		return Error::Announce(AnnounceErrors::SerdeError(error))
+	}
+}
+impl From<postgres::error::Error> for Error {
+	fn from(error: postgres::error::Error) -> Error {
+		return Error::Postgres(error)
 	}
 }
 

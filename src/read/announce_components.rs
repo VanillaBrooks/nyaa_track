@@ -2,10 +2,6 @@ use super::super::error::*;
 use super::super::utils;
 use super::super::requests::url_encoding;
 
-use serde_bencode::{self, de};
-use serde_derive::{Deserialize};
-use serde_bytes::{self, ByteBuf};
-use std::fs;
 use std::io::prelude::*;
 
 use super::announce_result::AnnounceResult;
@@ -96,6 +92,7 @@ impl AnnounceComponents  {
 
 					// there was a problem with the request (most likely the hash)
 					Err(_x) => {
+						dbg!{_x};
 						//TODO : log all information on the struct about this error here
 						return Err(
 							Error::Announce(

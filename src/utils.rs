@@ -2,24 +2,30 @@
 use std::io::prelude::*;
 use reqwest;
 // mod error;
-use super::error::{Error, AnnounceErrors, RssErrors, TorrentErrors };
+use super::error::*;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hashbrown::HashSet;
 
-use super::read::{torrent, announce_components, announce_result};
+use super::read::{torrent, announce_components};
 use torrent::Torrent;
 use announce_components::AnnounceComponents;
-use announce_result::AnnounceResult;
+// use announce_result::AnnounceResult;
 
 
 // TODO: configure client pooling
 // probably want to turn this thing into a struct
 pub fn download_torrent(url: Option<&str>, save_name: &str) -> Result<Torrent, Error> {
-	dbg!{url};
+	// dbg!{url};
 	if url.is_some(){
-		let raw_url = url.unwrap();
+        let raw_url = match url {
+            Some(url) => url,
+            None => { // TODO: log the error here
+                return Err(Error::UrlError)
+            }
+        };
+
 		let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
 		reqwest::get(raw_url)?.read_to_end(&mut buffer)?;
 		
@@ -52,7 +58,10 @@ pub fn content_after_last_slash<'a> (url: &'a str) -> Result<&'a str, Error> {
 	
 	let mut last = 0;
 	for i in 0..url.len()-1 {
-        let k = url.get(i..i+1).unwrap();
+        let k = match url.get(i..i+1) {
+            Some(data) => data,
+            None => return Err(Error::SliceError("Could not slice the string".to_string()))
+        };
 		if k== "/" || k ==r"\" {
 			last = i;
 		}
@@ -145,7 +154,7 @@ pub fn torrents_with_hashes(directory: &str) -> Vec<Torrent> {
     let torrents = serialize_all_torrents(directory);
     let mut results = Vec::with_capacity(torrents.len());
 
-    torrents.into_iter().filter((|(_, y)| y.is_ok()))
+    torrents.into_iter().filter(|(_, y)| y.is_ok())
         .for_each(|(x, y)|{
             let a = content_after_last_slash(&x).unwrap();
             let b = content_before_dot_torrent(&a).unwrap();
@@ -165,22 +174,8 @@ pub fn torrents_with_hashes(directory: &str) -> Vec<Torrent> {
 
 //TODO: compose this function with `torrents_with_hashes`
 // filter all torrents to only be nyaa.si announce URLS
-pub fn nyaa_si_announces(directory: &str) -> Vec<AnnounceComponents>{
-    let mut all_torrents = torrents_with_hashes(directory);
-
-    // for i in all_torrents {
-    //     match &i.announce {
-    //         Some(ann_url) => {
-    //             if ann_url.contains("http") && ann_url.contains("nyaa"){
-    //                 ()
-    //             }
-    //             else{continue}
-    //         },
-    //         None => continue
-    //     }
-    //     let announce = AnnounceComponents::new(i.announce, i.info.info_hash.unwrap(), i.creation_date);
-    // }
-
+pub fn nyaa_si_announces_from_files(directory: &str) -> Vec<AnnounceComponents>{
+    let all_torrents = torrents_with_hashes(directory);
     all_torrents.into_iter()
         .filter(|x| {           // make sure it has the url we are looking for
             match &x.announce {
@@ -203,7 +198,18 @@ pub fn nyaa_si_announces(directory: &str) -> Vec<AnnounceComponents>{
         .map(|x| x.unwrap())
         .collect::<Vec<_>>()
 
-    // unimplemented!()
+}
+
+pub fn filter_nyaa_announces(data: Vec<AnnounceComponents>) -> Vec<AnnounceComponents> {
+    data.into_iter()
+        .filter(|x| {           // make sure it has the url we are looking for
+
+            if x.url.contains("http") && x.url.contains("nyaa"){true}
+            else {false}
+
+        })
+
+        .collect::<Vec<_>>()
 }
 
 pub fn info_hash_set(directory: &str) -> HashSet<String> {
@@ -218,13 +224,9 @@ pub fn info_hash_set(directory: &str) -> HashSet<String> {
     return hash_set;
 }
 
-
-
 pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
 
     let dir : Vec<_> = serialize_all_torrents(dir_to_read);
-
-    println!{"made it"}
 
     let mut good = 0;
     let mut bad : Vec<String>= Vec::new();

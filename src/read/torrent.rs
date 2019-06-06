@@ -1,14 +1,11 @@
-use serde;
-
 use serde_derive::{self, Serialize, Deserialize};
 
 use serde_bytes::{self, ByteBuf};
 
 use serde_bencode;
 use serde_bencode::de;
-// use serde_bencode::ser;
 
-use std::io::{self, Read};
+use std::io::Read;
 
 use crypto;
 use crypto::digest::Digest;
@@ -18,13 +15,10 @@ use bencode::Bencode;
 use std::collections::BTreeMap;
 use bencode::util::ByteString;
 
-use std::fs;
-use std::path::Path;
 
 use super::super::error::*;
 
-use super::super::utils;
-use super::super::requests::url_encoding;
+
 
 // #[derive(Debug, Deserialize)]
 // pub struct Node(String, i64);
@@ -157,7 +151,6 @@ impl Info {
         else {
             Err(Error::Torrent(TorrentErrors::MissingName))
         }
-
     }
 }
 
@@ -311,7 +304,7 @@ impl Torrent{
     }
     pub fn new_file(filename: &str) -> Result<Torrent, Error> {
         let mut buffer = Vec::new();
-        let mut file = std::fs::File::open(filename).unwrap();
+        let mut file = std::fs::File::open(filename)?;
         file.read_to_end(&mut buffer)?;
         Torrent::new_bytes(&buffer)
     }
