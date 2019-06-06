@@ -80,11 +80,15 @@ impl AnnounceComponents  {
 						let mut buffer: Vec<u8> = Vec::with_capacity(150);
 						response.read_to_end(&mut buffer)?;
 						
-						let parse = AnnounceResult::new_bytes(&buffer, self.info_hash.clone(), self.url.clone(), self.title.clone(), self.creation_date)?;
+						let parse = AnnounceResult::new_bytes(&buffer, &self.info_hash, &self.url, &self.title, &self.creation_date)?;
 						self.interval = Some(parse.data.interval);
 						self.last_announce = Some(std::time::Instant::now());
 
-						self.configure_next_announce(&parse.data.complete);
+						// update the next announce interval
+						match self.configure_next_announce(&parse.data.complete){
+							Some(new_interval) => self.interval = Some(new_interval),
+							None => ()
+						}
 
 						return Ok(parse);
 						
@@ -109,7 +113,7 @@ impl AnnounceComponents  {
 
 	}
 
-    fn configure_next_announce(&mut self, seeds: &i64) {
+    fn configure_next_announce(self: &Self, seeds: &i64) -> Option<i64> {
         let days : i64 = (utils::get_unix_time() - self.creation_date) / 86400;
         let min_seeds : i64= 20; // number of seeds after time period where we check less frequently
         let min_days = 7; // number of days when we check less frequently
@@ -117,8 +121,10 @@ impl AnnounceComponents  {
         let new_interval = 6*60*60;
 
         if (days < min_days) && (*seeds < min_seeds) {
-            self.interval = Some(new_interval);
-
+			return Some(new_interval)
         }
+		else {
+			None
+		}
     }
 }

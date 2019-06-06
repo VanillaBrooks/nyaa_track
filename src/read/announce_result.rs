@@ -14,8 +14,8 @@ pub struct AnnounceResult {
     pub creation_date: i64,
     pub data: AnnounceData
 }
-impl AnnounceResult{
-    pub fn new_bytes(input_bytes: &Vec<u8>, hash: String, url: String, title: String, date: i64) -> Result<AnnounceResult, Error>{
+impl <'a> AnnounceResult <'a> {
+    pub fn new_bytes(input_bytes: &Vec<u8>, hash: &'a String, url: &'a String, title: &'a String, date: &'a i64) -> Result<AnnounceResult<'a>, Error>{
         let data = AnnounceData::new_bytes(&input_bytes)?;
         let s = AnnounceResult{info_hash: hash, 
         announce_url: url,
