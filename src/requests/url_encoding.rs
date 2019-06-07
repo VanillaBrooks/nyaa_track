@@ -1,5 +1,7 @@
 use hashbrown::HashMap;
-
+use super::super::error::*;
+use super::super::utils;
+use lazy_static::lazy_static;
 // expects string to be lowercase
 pub fn hex_to_char(input: &str) -> String {
     // let input = input.to_uppercase();
@@ -91,7 +93,7 @@ fn reserved_characters() -> HashMap<String, String> {
 }
 
 #[derive(Debug)]
-pub struct Url {
+pub struct AnnounceUrl {
 	info_hash: String,
 	peer_id: String,
 	port: u32,
@@ -102,14 +104,13 @@ pub struct Url {
 }
 
 
-
-impl Url {
-    pub fn new(info_hash: String, peer_id: String) -> Url {
+impl AnnounceUrl {
+    pub fn new(info_hash: String, peer_id: String) -> AnnounceUrl {
         let url_hash     = hex_to_char(&info_hash);
         let peer_id_hash = hex_to_char(&peer_id);
         // let url_hash = info_hash;
         // let peer_id_hash = peer_id;
-        Url{info_hash: url_hash, peer_id: peer_id_hash, port: 9932, uploaded:0, downloaded:0,numwant:20,compact: 1}
+        AnnounceUrl{info_hash: url_hash, peer_id: peer_id_hash, port: 9932, uploaded:0, downloaded:0,numwant:20,compact: 1}
     }
 
     // build the url format that is required
@@ -137,6 +138,33 @@ impl Url {
         base.push_str(cat);
         base.push_str("=");
         base.push_str(&var);
+    }
+}
+
+#[derive(Debug)]
+pub struct ScrapeUrl {
+    pub hashes: Vec<String>
+}
+impl ScrapeUrl {
+    pub fn new(hashes: Vec<&str>) -> ScrapeUrl {
+        let url_hashes = hashes.into_iter().map(|x| hex_to_char(x)).collect();
+        ScrapeUrl{hashes: url_hashes}
+    }
+    pub fn announce_to_scrape(&self, ann_url: &String) -> Result<String, Error> {
+        let mut base = String::with_capacity(40 + 40*self.hashes.len());
+        let no_announce_url = utils::content_before_last_slash(&ann_url)?;              //TODO: LOG the announce url we come up with here (could be problematic)
+        base.push_str(&no_announce_url);
+        base.push_str("scrape?");
+        
+        for hash in self.hashes.iter() {
+            base.push_str("info_hash=");
+            base.push_str(&hash);
+            base.push_str("&");
+        }
+        match base.get(0..base.len()-1) {
+            Some(x) => return Ok(base.to_string()),
+            None => return Err(Error::SliceError("slicing url could not be done. this should not happen".to_string())) //TODO: Log the error
+        }
     }
 }
 

@@ -9,7 +9,8 @@ pub enum Error{
 	Torrent(TorrentErrors),
 	Announce(AnnounceErrors),
 	SliceError(String),
-	Postgres(postgres::error::Error)
+	Postgres(postgres::error::Error),
+	ShouldNeverHappen(String)
 }
 
 impl From<reqwest::Error> for Error{

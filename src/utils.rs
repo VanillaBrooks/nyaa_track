@@ -79,6 +79,25 @@ pub fn content_after_last_slash<'a> (url: &'a str) -> Result<&'a str, Error> {
     }
 }
 
+pub fn content_before_last_slash<'a> (url: &'a str) -> Result<&'a str, Error> {
+    let mut last = 0;
+    
+	for i in 0..url.len()-1 {
+        let k = match url.get(i..i+1) {
+            Some(data) => data,
+            None => return Err(Error::SliceError("Could not slice the string".to_string()))
+        };
+		if k== "/" || k ==r"\" {
+			last = i;
+		}
+	}
+
+	match url.get(0..last+1) {
+        Some(slice) => Ok(slice),
+        None => Err(Error::SliceError("did not contain a slash. you fucked up somewhere".to_string()))
+    }
+}
+
 
 // asssumes it is only filename and .torrent with no extra directory info
 pub fn content_before_dot_torrent<'a>(input: &'a str) -> Result<&'a str, Error>{

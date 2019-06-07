@@ -4,7 +4,8 @@ use super::super::requests::url_encoding;
 
 use std::io::prelude::*;
 
-use super::announce_result::AnnounceResult;
+use super::{AnnounceResult, ScrapeResult, ScrapeData, GenericData};
+
 
 #[derive(Debug)]
 pub struct AnnounceComponents {
@@ -43,21 +44,47 @@ impl AnnounceComponents  {
 	}
 
 	// TODO: pass in constructed client for get requests
-	pub fn announce(&mut self) -> Result<AnnounceResult, Error> {
+	// pub fn announce(&mut self) -> Result<AnnounceResult, Error> {
 
+	// }
+
+    fn configure_next_announce(self: &Self, seeds: &i64) -> Option<i64> {
+        let days : i64 = (utils::get_unix_time() - self.creation_date) / 86400;
+        let min_seeds : i64= 20; // number of seeds after time period where we check less frequently
+        let min_days = 7; // number of days when we check less frequently
+        
+        let new_interval = 6*60*60;
+
+        if (days < min_days) && (*seeds < min_seeds) {
+			return Some(new_interval)
+        }
+		else {
+			None
+		}
+    }
+}
+impl PullData for AnnounceComponents {
+	fn run(&mut self) -> Result<GenericData, Error> {
+		
 		// generate an announce url if empty
 		if self.announce_url.is_none() {
-			let url = url_encoding::Url::new(self.info_hash.to_string(), self.info_hash.to_string());
+			// get all the extentions ?asd=234235&asda=234 extensions
+			let url = url_encoding::AnnounceUrl::new(self.info_hash.to_string(), self.info_hash.to_string());
 			let url = url.serialize();
 
+			//push all the extensions onto the base url
 			let mut url_copy = self.url.clone();
 			url_copy.push_str("?");
 			url_copy.push_str(&url);
 
 			self.announce_url = Some(url_copy);
+
+			dbg!{&self.announce_url};
+			panic!{"119 line in ann_comp "};
 		}
 
-		
+
+		// run the announce
 		match &self.announce_url {
 			Some(url) => {
 				
@@ -81,7 +108,9 @@ impl AnnounceComponents  {
 						response.read_to_end(&mut buffer)?;
 						
 						let parse = AnnounceResult::new_bytes(&buffer, &self.info_hash, &self.url, &self.title, &self.creation_date)?;
-						self.interval = Some(parse.data.interval);
+						if parse.data.interval.is_some() {
+							self.interval = parse.data.interval
+						}
 						self.last_announce = Some(std::time::Instant::now());
 
 						// update the next announce interval
@@ -90,7 +119,13 @@ impl AnnounceComponents  {
 							None => ()
 						}
 
-						return Ok(parse);
+						return Ok(GenericData::new(&self.info_hash,
+												&self.url,
+												&self.creation_date,
+												&self.title,
+												parse.data.downloaded,
+												parse.data.complete,
+												parse.data.incomplete))
 						
 					},
 
@@ -110,21 +145,100 @@ impl AnnounceComponents  {
 			// TODO: Log errors here
 			None => Err(Error::Announce(AnnounceErrors::AnnounceUrlNone))
 		}
-
 	}
+}
 
-    fn configure_next_announce(self: &Self, seeds: &i64) -> Option<i64> {
-        let days : i64 = (utils::get_unix_time() - self.creation_date) / 86400;
-        let min_seeds : i64= 20; // number of seeds after time period where we check less frequently
-        let min_days = 7; // number of days when we check less frequently
-        
-        let new_interval = 6*60*60;
+pub struct ScrapeComponents {
+	pub url : String,
+	pub info_hash: String,
+	pub title: String,
+	creation_date: i64,
+	scrape_url: Option<String>,
+}
 
-        if (days < min_days) && (*seeds < min_seeds) {
-			return Some(new_interval)
-        }
-		else {
-			None
+impl ScrapeComponents {
+	pub fn new(url: Option<String>, hash: String, creation_date: Option<i64>, title: String) -> Result<ScrapeComponents, Error>{
+		if url.is_some() {
+			let date = match creation_date {
+				Some(date) => date,
+				None => utils::get_unix_time()
+			};
+			
+			Ok(ScrapeComponents {
+				url: url.unwrap(),
+				info_hash: hash,
+				title: title,
+				creation_date: date,
+				scrape_url: None
+			})
+
 		}
-    }
+		else {
+			Err(Error::UrlError)
+		}
+	}
+}
+
+impl PullData for ScrapeComponents {
+	fn run(&mut self) -> Result<GenericData, Error> {
+		if self.scrape_url.is_none() {
+			let url_struct = url_encoding::ScrapeUrl::new(vec![&self.url]);
+
+			self.scrape_url = Some(url_struct.announce_to_scrape(&self.url)?);
+		}
+
+		match &self.scrape_url {
+			Some(url) => {
+				match reqwest::get(url) {
+					Ok(mut response) =>{
+						
+						let mut buffer: Vec<u8> = Vec::with_capacity(150);
+						response.read_to_end(&mut buffer)?;
+						
+						let parse = ScrapeData::new_bytes(&buffer)?;
+
+						match parse.files.values().into_iter().next() {
+							Some(data) => {
+
+								Ok(GenericData::new(&self.info_hash,
+													&self.url,
+													&self.creation_date,
+													&self.title,
+													data.downloaded,
+													data.complete,
+													data.complete))
+
+							}
+							None => { // todo: log this error this should not happen
+										// the file did not serialize the mandatory field
+								Err(Error::ShouldNeverHappen("the fields of scrapedata were not correctly filled".to_string()))
+							}
+						}
+
+					}
+					Err(error) => { // TODO: log this error
+						Err(
+							Error::Announce(
+								AnnounceErrors::AnnounceUrlError(url.clone())
+								)
+							)
+					}
+				}
+
+			}
+			None => { //TODO log this error
+				Err(Error::UrlError)
+			}
+		}
+	}
+}
+
+
+pub trait PullData {
+	fn run(&mut self) -> Result<GenericData, Error> ;
+}
+
+pub enum DataFormat <'a> {
+	individual(Result<GenericData<'a>, Error>),
+	vector(Vec<Result<GenericData<'a>, Error>>)
 }

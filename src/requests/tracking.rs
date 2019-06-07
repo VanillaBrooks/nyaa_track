@@ -1,17 +1,16 @@
-use super::super::read::{announce_components, announce_result};
-use announce_result::AnnounceResult;
-use announce_components::AnnounceComponents;
-
+// use super::super::read::{announce_components, announce_result};
+use super::super::read::{AnnounceResult ,AnnounceComponents, GenericData};
+use super::super::read::announce_components::PullData;
 use super::super::database;
 
 use super::super::error::*;
 
-pub fn announce_all_components(components: &mut Vec<AnnounceComponents>) -> Vec<AnnounceResult> {
-	let mut announce_results : Vec<AnnounceResult> = Vec::with_capacity(components.len()/10);
+pub fn announce_all_components<T: PullData>(components: &mut Vec<T>) -> Vec<GenericData> {
+	let mut announce_results = Vec::with_capacity(components.len()/10);
 	let start_len = components.len() as i32;
 
 	for item in components {
-		match item.announce() {
+		match item.run() {
 			Ok(announce) => {
 				announce_results.push(announce);
 			}
@@ -25,7 +24,7 @@ pub fn announce_all_components(components: &mut Vec<AnnounceComponents>) -> Vec<
 }
 
 
-pub fn update_database(stats: &Vec<AnnounceResult>) -> Result<(), Error> {
+pub fn update_database(stats: &Vec<GenericData>) -> Result<(), Error> {
 	let conn = database::connection::start()?;
 	
 	let prepare_info = conn.prepare("INSERT INTO info (info_hash, announce_url, creation_date, title) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING").unwrap();
@@ -33,12 +32,12 @@ pub fn update_database(stats: &Vec<AnnounceResult>) -> Result<(), Error> {
 	
 	for res in stats{
 
-		match prepare_info.execute(&[&res.info_hash, &res.announce_url, &res.creation_date, &res.title]){
+		match prepare_info.execute(&[&res.hash, &res.url, &res.creation_date, &res.title]){
 			Ok(_) => (),
 			Err(error) => () // TODO log error
 		}
 
-		match prepare_data.execute(&[&res.info_hash, &res.announce_url, &res.data.downloaded, &res.data.complete, &res.data.incomplete, &res.poll_time]) {
+		match prepare_data.execute(&[&res.hash, &res.url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]) {
 			Ok(_) => (),
 			Err(error) => () // TODO: log error
 		}
