@@ -14,6 +14,7 @@ pub struct AnnounceComponents {
 	pub title: String,
 	creation_date: i64,
 	announce_url: Option<String>,
+	scrape_url: Option<String>,
 	interval: Option<i64>,
 	last_announce: Option<std::time::Instant>
 }
@@ -35,6 +36,7 @@ impl AnnounceComponents  {
 								creation_date: date,
 								title: title,
 								announce_url: None,
+								scrape_url: None,
 								interval: None,
 								last_announce: None})
 		}
@@ -43,28 +45,7 @@ impl AnnounceComponents  {
 		}
 	}
 
-	// TODO: pass in constructed client for get requests
-	// pub fn announce(&mut self) -> Result<AnnounceResult, Error> {
-
-	// }
-
-    fn configure_next_announce(self: &Self, seeds: &i64) -> Option<i64> {
-        let days : i64 = (utils::get_unix_time() - self.creation_date) / 86400;
-        let min_seeds : i64= 20; // number of seeds after time period where we check less frequently
-        let min_days = 7; // number of days when we check less frequently
-        
-        let new_interval = 6*60*60;
-
-        if (days < min_days) && (*seeds < min_seeds) {
-			return Some(new_interval)
-        }
-		else {
-			None
-		}
-    }
-}
-impl PullData for AnnounceComponents {
-	fn run(&mut self) -> Result<GenericData, Error> {
+	fn announce(&mut self) -> Result<GenericData, Error> {
 		
 		// generate an announce url if empty
 		if self.announce_url.is_none() {
@@ -146,46 +127,30 @@ impl PullData for AnnounceComponents {
 			None => Err(Error::Announce(AnnounceErrors::AnnounceUrlNone))
 		}
 	}
-}
 
-pub struct ScrapeComponents {
-	pub url : String,
-	pub info_hash: String,
-	pub title: String,
-	creation_date: i64,
-	scrape_url: Option<String>,
-}
+    fn configure_next_announce(self: &Self, seeds: &i64) -> Option<i64> {
+        let days : i64 = (utils::get_unix_time() - self.creation_date) / 86400;
+        let min_seeds : i64= 20; // number of seeds after time period where we check less frequently
+        let min_days = 7; // number of days when we check less frequently
+        
+        let new_interval = 6*60*60;
 
-impl ScrapeComponents {
-	pub fn new(url: Option<String>, hash: String, creation_date: Option<i64>, title: String) -> Result<ScrapeComponents, Error>{
-		if url.is_some() {
-			let date = match creation_date {
-				Some(date) => date,
-				None => utils::get_unix_time()
-			};
-			
-			Ok(ScrapeComponents {
-				url: url.unwrap(),
-				info_hash: hash,
-				title: title,
-				creation_date: date,
-				scrape_url: None
-			})
-
-		}
+        if (days < min_days) && (*seeds < min_seeds) {
+			return Some(new_interval)
+        }
 		else {
-			Err(Error::UrlError)
+			None
 		}
-	}
-}
+    }
 
-impl PullData for ScrapeComponents {
-	fn run(&mut self) -> Result<GenericData, Error> {
+	pub fn scrape(&mut self) -> Result<GenericData, Error> {
+
 		if self.scrape_url.is_none() {
-			let url_struct = url_encoding::ScrapeUrl::new(vec![&self.url]);
+			let url_struct = url_encoding::ScrapeUrl::new(&self.info_hash);
 
 			self.scrape_url = Some(url_struct.announce_to_scrape(&self.url)?);
 		}
+
 
 		match &self.scrape_url {
 			Some(url) => {
@@ -231,14 +196,4 @@ impl PullData for ScrapeComponents {
 			}
 		}
 	}
-}
-
-
-pub trait PullData {
-	fn run(&mut self) -> Result<GenericData, Error> ;
-}
-
-pub enum DataFormat <'a> {
-	individual(Result<GenericData<'a>, Error>),
-	vector(Vec<Result<GenericData<'a>, Error>>)
 }

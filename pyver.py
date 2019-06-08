@@ -59,17 +59,21 @@ def pull_stats(info_hash):
 	port = 9932
 	peer_id = url_hash
 	numwant = 20
-	url = f'http://nyaa.tracker.wf:7777/announce?info_hash={url_hash}&peer_id={url_hash}&port={port}&uploaded=0&downloaded=0&numwant={numwant}&compact=1'
+
+	hash_2 = url_encoding("def230009154134ebcbf91d3785613640076a505")
+
+	# url = f'http://nyaa.tracker.wf:7777/scrape?info_hash={url_hash}&peer_id={url_hash}&port={port}&uploaded=0&downloaded=0&numwant={numwant}&compact=1'
+	scrape = f'http://nyaa.tracker.wf:7777/scrape?info_hash={url_hash}&info_hash={hash_2}'
 	print(f'url is: {url}')
 
-	req = urllib.request.urlopen(url).read()
+	req = urllib.request.urlopen(scrape).read()
 	pprint(bencoder.decode(req))
 
 
 
 if __name__ == "__main__":
-	url = "679bff2026b8a76ace66cffd08cbc27d89c0b864"
+	url = "255cf86089e5c3759090acb65e1b2dfd4a167eca"
 	print(url)
 	print(url_encoding(url))
 
-	# pull_stats(url)
+	pull_stats(url)

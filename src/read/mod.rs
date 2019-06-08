@@ -10,4 +10,3 @@ pub use results::GenericData;
 
 pub mod announce_components;
 pub use announce_components::AnnounceComponents;
-

@@ -10,7 +10,7 @@ use hashbrown::HashSet;
 
 use super::read::{torrent, announce_components};
 use torrent::Torrent;
-use announce_components::AnnounceComponents;
+use announce_components::{AnnounceComponents};
 // use announce_result::AnnounceResult;
 
 
@@ -233,9 +233,9 @@ pub fn filter_nyaa_announces(data: Vec<AnnounceComponents>) -> Vec<AnnounceCompo
             else {false}
 
         })
-
         .collect::<Vec<_>>()
 }
+
 
 pub fn info_hash_set(directory: &str) -> HashSet<String> {
     let mut hash_set : HashSet<String>= HashSet::new();

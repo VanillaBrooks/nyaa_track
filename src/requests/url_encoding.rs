@@ -13,9 +13,9 @@ pub fn hex_to_char(input: &str) -> String {
         static ref INDEXES :  Vec<usize> = (0..40).step_by(2).collect();
     }
 
+
     for i in INDEXES.iter(){
         let chars = input.get(*i..*i+2).unwrap();
-        
         // println!{"chars are {}", chars}
 
         match HEX.get(chars) {
@@ -143,24 +143,22 @@ impl AnnounceUrl {
 
 #[derive(Debug)]
 pub struct ScrapeUrl {
-    pub hashes: Vec<String>
+    pub hash: String
 }
 impl ScrapeUrl {
-    pub fn new(hashes: Vec<&str>) -> ScrapeUrl {
-        let url_hashes = hashes.into_iter().map(|x| hex_to_char(x)).collect();
-        ScrapeUrl{hashes: url_hashes}
+    pub fn new(hash: &str) -> ScrapeUrl {
+        let url_hash = hex_to_char(hash);
+        ScrapeUrl{hash: url_hash}
     }
     pub fn announce_to_scrape(&self, ann_url: &String) -> Result<String, Error> {
-        let mut base = String::with_capacity(40 + 40*self.hashes.len());
+        let mut base = String::with_capacity(40 + 40*1);
         let no_announce_url = utils::content_before_last_slash(&ann_url)?;              //TODO: LOG the announce url we come up with here (could be problematic)
         base.push_str(&no_announce_url);
         base.push_str("scrape?");
-        
-        for hash in self.hashes.iter() {
-            base.push_str("info_hash=");
-            base.push_str(&hash);
-            base.push_str("&");
-        }
+
+        base.push_str("info_hash=");
+        base.push_str(&self.hash);
+
         match base.get(0..base.len()-1) {
             Some(x) => return Ok(base.to_string()),
             None => return Err(Error::SliceError("slicing url could not be done. this should not happen".to_string())) //TODO: Log the error

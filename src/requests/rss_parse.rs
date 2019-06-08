@@ -4,7 +4,7 @@ use rss;
 use std::fs;
 use std::io::prelude::*;
 use std::time;
-use super::super::read::announce_components::AnnounceComponents;
+use super::super::read::{AnnounceComponents};
 
 use hashbrown::HashSet;
 
@@ -14,7 +14,7 @@ use super::super::error::*;
 
 
 macro_rules! parse {
-	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident, $previous:ident, $dl:ident) => {
+	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident, $previous:ident, $dl:ident, $end_type:ty) => {
 		match $func(&$parse_item){
 			Ok(info_hash) => {
 
@@ -49,8 +49,6 @@ macro_rules! parse {
 // return a vector of structs required to make announcements
 // will only Error if the provided url is incorrect
 pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error> {
-
-
 	//TODO: move this to a lazy_static!{}
 	// println!{"creating temp folder"}
 	let temp_folder : &'static str = r"C:\Users\Brooks\github\nyaa_tracker\temp";
@@ -71,10 +69,10 @@ pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error>
 	// read xml data from file
 	let file = fs::File::open(&path)?;
 	let channel = rss::Channel::read_from(std::io::BufReader::new(file))?;
-	let mut items = channel.items().to_vec();
-	
+	let mut items = channel.into_items().to_vec();
+
 	// storage vectors
-	let mut good_data: Vec<AnnounceComponents>= Vec::with_capacity(items.len());
+	let mut good_data : Vec<AnnounceComponents> = Vec::with_capacity(items.len());
 	let mut error_data: Vec<Error> = Vec::new();
 
 	let downloader = utils::Downloader::new();
@@ -84,10 +82,10 @@ pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error>
 		let current_item = items.remove(0);
 
 		if url.contains(".si"){
-			parse!(nyaa_si_hash, current_item, good_data, error_data, previous, downloader)
+			parse!(nyaa_si_hash, current_item, good_data, error_data, previous, downloader, AnnounceComponents)
 		}
 		else if url.contains("pantsu.cat"){
-			parse!(nyaa_pantsu_hash, current_item, good_data, error_data, previous, downloader)
+			parse!(nyaa_pantsu_hash, current_item, good_data, error_data, previous, downloader, AnnounceComponents)
 		}
 		else {
 			panic!("RSS url is not correct. fix that shit")
@@ -98,16 +96,22 @@ pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error>
 	return Ok(Data::new(good_data, error_data))
 }
 
+
 #[derive(Debug)]
-pub struct Data  {
+pub struct Data {
 	pub good : Vec<AnnounceComponents>,
 	pub bad : Vec<Error>
 }
-impl Data{
-	fn new(good: Vec<AnnounceComponents>, bad : Vec<Error>) -> Data{ 
+impl Data {
+	fn new(good: Vec<AnnounceComponents>, bad : Vec<Error>) ->Self{ 
 		Data {good: good, bad: bad}
 	}
 }
+// impl Data<AnnounceComponents> {
+// 	fn new(good: Vec<AnnounceComponents>, bad : Vec<Error>) -> Self{ 
+// 		Data {good: good, bad: bad}
+// 	}
+// }
 
 // timer for rss updates
 pub struct Timer <'a> {
