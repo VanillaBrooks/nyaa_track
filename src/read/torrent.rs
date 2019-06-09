@@ -29,7 +29,7 @@ pub struct File {
     ed2k: Option<ByteBuf>,
 
     #[serde(default)]
-    filehash: Option<ByteBuf>,
+    filehash: Option<ByteBuf>,              //also called hash
 
     #[serde(default)]
     attr:Option<String>,
@@ -41,6 +41,9 @@ pub struct File {
     #[serde(rename="path.utf-8")]
     #[serde(default)]
     utf8path: Option<Vec<String>>,
+
+    #[serde(default)]
+    sha1: Option<ByteBuf>,
 
     #[serde(default)]
     md5sum: Option<String>,
@@ -70,6 +73,10 @@ impl ToBencode for File {
             m.insert(ByteString::from_str("path.utf-8"), self.utf8path.clone().unwrap().to_bencode());
         }
 
+        if self.sha1.is_some() {
+            m.insert(ByteString::from_str("sha1"), Bencode::ByteString(self.sha1.clone().unwrap().to_vec()));
+        }
+
         if self.md5sum.is_some(){
             m.insert(ByteString::from_str("md5sum"), self.md5sum.clone().unwrap().to_bencode());
         }
@@ -91,8 +98,11 @@ pub struct Info {
     #[serde(default)]
     ed2k: Option<ByteBuf>,
 
-    #[serde(default)]
+    #[serde(default)]               //also called hash ?
     filehash: Option<ByteBuf>,
+
+    #[serde(default)]
+    attr:Option<String>,
 
     #[serde(rename = "length")]
     #[serde(default)]
@@ -175,6 +185,10 @@ impl ToBencode for Info {
 
         if self.filehash.is_some() {
             m.insert(ByteString::from_str("filehash"), Bencode::ByteString(self.filehash.clone().unwrap().into_vec()));
+        }
+        
+        if self.attr.is_some(){
+            m.insert(ByteString::from_str("attr"), self.attr.clone().unwrap().to_bencode());
         }
 
         if self.length.is_some(){
