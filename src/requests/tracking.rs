@@ -11,6 +11,7 @@ pub fn announce_all_components(components: &mut Vec<AnnounceComponents>) -> Vec<
 	for item in components {
 		match item.scrape() {
 			Ok(announce) => {
+				dbg!{&announce};
 				announce_results.push(announce);
 			}
 			Err(error) => () // TODO: log the error here

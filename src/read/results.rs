@@ -94,6 +94,7 @@ impl ScrapeData {
     }
 }
 
+#[derive(Debug)]
 pub struct GenericData <'a> {
     pub hash: &'a String,
     pub url: &'a String,

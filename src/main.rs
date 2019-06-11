@@ -81,10 +81,10 @@ fn main() {
 	let mut all_announce_components = Vec::new();
 	let mut previous = utils::info_hash_set(TORRENTS_DIR);
 
-	// let mut file_announce_comp = utils::nyaa_si_announces_from_files(TORRENTS_DIR);
-	let mut database_announces = database::pull_data::database_announce_components().unwrap().into_iter().take(10).collect::<Vec<_>>();
+	let mut file_announce_comp = utils::nyaa_si_announces_from_files(TORRENTS_DIR);
+	// let mut database_announces = database::pull_data::database_announce_components().unwrap();//.into_iter().take(10).collect::<Vec<_>>();
 
-	all_announce_components.append(&mut database_announces);
+	all_announce_components.append(&mut file_announce_comp);
 
 	let mut si_timer = rss_parse::Timer::new(60*5, SI_RSS);
 	let mut pantsu_timer = rss_parse::Timer::new(60*5, PANTSU_RSS);
