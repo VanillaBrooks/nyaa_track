@@ -1,6 +1,8 @@
 
 use std::io::prelude::*;
-use reqwest;
+use hyper::rt::{Future, Stream};
+use hyper::client::{Client, HttpConnector};
+use hyper_tls::HttpsConnector;
 // mod error;
 use super::error::*;
 
@@ -13,36 +15,47 @@ use torrent::Torrent;
 use announce_components::{AnnounceComponents};
 // use announce_result::AnnounceResult;
 
+pub fn https_connection(thread_count: usize) -> Client<HttpsConnector<HttpConnector>> {
+    let https = HttpsConnector::new(thread_count).unwrap();
+    let client = Client::builder()
+        .build::<_, hyper::Body>(https);
+    return client
+}
 
 // TODO: configure client pooling
 // probably want to turn this thing into a struct
 pub struct Downloader {
-    client: reqwest::Client
+    client: Client<HttpsConnector<HttpConnector>>
 }
+
 impl Downloader {
     pub fn new() -> Downloader {
-        Downloader{client: reqwest::Client::new()}
+        let client_config = https_connection(4);
+        Downloader{client: client_config}
     }
-    pub fn download(&self, url: Option<&str>, save_name: &str) -> Result<Torrent, Error> {
-        if url.is_some(){
-            let raw_url = match url {
-                Some(url) => url,
-                None => { // TODO: log the error here
-                    return Err(Error::UrlError)
-                }
-            };
+    pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
+        Downloader{client: client }
+    }
+    pub fn download(&self, url: &str, save_name: String) -> impl Future<Item=Torrent, Error=Error> {
+        let url = url.parse().expect("URI was not able to be parsed correctly in Downloader::download");
 
-            let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
-            self.client.get(raw_url).send()?.read_to_end(&mut buffer)?;
-            
-            write_torrent_to_file(&buffer, &save_name)?;
-            let t = Torrent::new_bytes(&buffer);
-        
-            Ok(t?)
-        }
-        else{
-            Err(Error::UrlError)
-        }
+        let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
+        self.client
+            .get(url)
+            .and_then(|res| res.into_body().concat2())
+            .from_err::<Error>()
+            .and_then(|body| {
+                let data = body.into_bytes().into_iter().collect::<Vec<_>>();
+                Ok(data)
+            })
+            .and_then(move |data| {
+                write_torrent_to_file(&data, &save_name);
+                Ok(data)
+            })
+            .and_then(|data|{
+                Torrent::new_bytes(&data)
+            })
+            .from_err::<Error>()
     }
 }
 
@@ -51,6 +64,7 @@ pub fn write_torrent_to_file(data: &Vec<u8>, save_name: &str) -> Result<String, 
     let mut base = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
     base.push_str(save_name);
     base.push_str(".torrent");
+
 
 	let mut file = std::fs::File::create(&base)?;
 	file.write_all(&data)?;

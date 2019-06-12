@@ -5,22 +5,24 @@ use super::super::database;
 use super::super::error::*;
 
 pub fn announce_all_components(components: &mut Vec<AnnounceComponents>) -> Vec<GenericData> {
-	let mut announce_results = Vec::with_capacity(components.len()/10);
-	let start_len = components.len() as i32;
+	// let mut announce_results = Vec::with_capacity(components.len()/10);
+	// let start_len = components.len() as i32;
 
-	for item in components {
-		match item.scrape() {
-			Ok(announce) => {
-				dbg!{&announce};
-				announce_results.push(announce);
-			}
-			Err(error) => () // TODO: log the error here
-		}
-	}
-	let res = announce_results.len() as i32;
+	// for item in components {
+	// 	match item.scrape() {
+	// 		Ok(announce) => {
+	// 			dbg!{&announce};
+	// 			announce_results.push(announce);
+	// 		}
+	// 		Err(error) => () // TODO: log the error here
+	// 	}
+	// }
+	// let res = announce_results.len() as i32;
 
-	println!{"Announce Results:\nInput Count:\t{}\nSuccessful Announces:\t{}\nBad Announces:\t{}",start_len, res, (start_len-res)}
-	return announce_results
+	// println!{"Announce Results:\nInput Count:\t{}\nSuccessful Announces:\t{}\nBad Announces:\t{}",start_len, res, (start_len-res)}
+	// return announce_results
+
+	unimplemented!()
 }
 
 
