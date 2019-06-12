@@ -76,7 +76,8 @@ fn bytes_from_file(dir: &str) -> Vec<u8> {
 
 fn main() {
 
-	let sleep = time::Duration::from_secs(10);
+	let sleep = time::Duration::from_secs(8);
+	// change shit 
 
 	let mut all_announce_components = Vec::new();
 	let mut previous = utils::info_hash_set(TORRENTS_DIR);
