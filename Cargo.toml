@@ -27,11 +27,12 @@ bencode = "0.1.16"
 postgres = "0.15.2"
 
 hyper = "0.12.29"
-serde_json = "1.0.39"
+# serde_json = "1.0.39"
 
+tokio = "0.1.21"
 tokio-postgres = "0.4.0-rc.2"
+tokio-io = "0.1.12"
 
 futures = "0.1.27"
-tokio = "0.1.21"
 http = "0.1.17"
 hyper-tls = "0.3.2"

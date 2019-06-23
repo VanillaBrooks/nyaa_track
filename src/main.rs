@@ -74,47 +74,59 @@ fn bytes_from_file(dir: &str) -> Vec<u8> {
 	return buffer
 }
 
+
+use futures::{self, Future};
+fn async_write() -> impl Future<Item=Vec<u8>, Error=String>{
+	let data = vec![1,2,3];
+	return futures::future::ok(data);
+}
+
 fn main() {
 
-	let sleep = time::Duration::from_secs(10);
+	let fut = async_write().map(|x| x)
+	.map_err(|err| err);
 
-	let mut all_announce_components = Vec::new();
-	let mut previous = utils::info_hash_set(TORRENTS_DIR);
+	tokio::run(fut);
 
-	let mut file_announce_comp = utils::nyaa_si_announces_from_files(TORRENTS_DIR);
-	// let mut database_announces = database::pull_data::database_announce_components().unwrap();//.into_iter().take(10).collect::<Vec<_>>();
+	// let sleep = time::Duration::from_secs(10);
 
-	all_announce_components.append(&mut file_announce_comp);
+	// let mut all_announce_components = Vec::new();
+	// let mut previous = utils::info_hash_set(TORRENTS_DIR);
 
-	let mut si_timer = rss_parse::Timer::new(60*5, SI_RSS);
-	let mut pantsu_timer = rss_parse::Timer::new(60*5, PANTSU_RSS);
+	// let mut file_announce_comp = utils::nyaa_si_announces_from_files(TORRENTS_DIR);
+	// // let mut database_announces = database::pull_data::database_announce_components().unwrap();//.into_iter().take(10).collect::<Vec<_>>();
 
-	loop {
-		let rss_pre = time::Instant::now();
-		rss_check!(si_timer, all_announce_components, previous);
-		rss_check!(pantsu_timer, all_announce_components, previous);
+	// all_announce_components.append(&mut file_announce_comp);
 
-		// start announcing 
-		let ann_start = time::Instant::now();
-		let announces = requests::tracking::announce_all_components(&mut all_announce_components);
+	// let mut si_timer = rss_parse::Timer::new(60*5, SI_RSS);
+	// let mut pantsu_timer = rss_parse::Timer::new(60*5, PANTSU_RSS);
 
-		// update database for the announce information
-		let db_start = time::Instant::now();
-		match requests::tracking::update_database(&announces) {
-			Ok(_)=> (),
-			Err(error) => { //todo : log the error here
-				println!{"error with the database"}
-			}
-		}
+	// loop {
+	// 	let rss_pre = time::Instant::now();
+	// 	rss_check!(si_timer, all_announce_components, previous);
+	// 	rss_check!(pantsu_timer, all_announce_components, previous);
 
-		let db_end = time::Instant::now();
-		diff("RSS time", &rss_pre, &ann_start);
-		diff("time to announce" , &ann_start, &db_start);
-		diff("time updating psql", &db_start, &db_end);
-		println!{"\n"}
+	// 	// start announcing 
+	// 	let ann_start = time::Instant::now();
+	// 	let announces = requests::tracking::announce_all_components(&mut all_announce_components);
+
+	// 	// update database for the announce information
+	// 	let db_start = time::Instant::now();
+	// 	match requests::tracking::update_database(&announces) {
+	// 		Ok(_)=> (),
+	// 		Err(error) => { //todo : log the error here
+	// 			println!{"error with the database"}
+	// 		}
+	// 	}
+
+	// 	let db_end = time::Instant::now();
+	// 	diff("RSS time", &rss_pre, &ann_start);
+	// 	diff("time to announce" , &ann_start, &db_start);
+	// 	diff("time updating psql", &db_start, &db_end);
+	// 	println!{"\n"}
 		
-		std::thread::sleep(sleep);
+	// 	std::thread::sleep(sleep);
 
-	}
+	// }
 
 }
