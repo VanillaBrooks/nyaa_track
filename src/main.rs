@@ -75,18 +75,13 @@ fn bytes_from_file(dir: &str) -> Vec<u8> {
 }
 
 
-use futures::{self, Future};
-fn async_write() -> impl Future<Item=Vec<u8>, Error=String>{
-	let data = vec![1,2,3];
-	return futures::future::ok(data);
-}
+// push to async branch
+//git push --set-upstream https://github.com/VanillaBrooks/nyaa_track async
 
 fn main() {
 
-	let fut = async_write().map(|x| x)
-	.map_err(|err| err);
 
-	tokio::run(fut);
+	// tokio::run(fut);
 
 	// let sleep = time::Duration::from_secs(10);
 

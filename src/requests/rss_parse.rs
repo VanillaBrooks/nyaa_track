@@ -49,15 +49,48 @@ use super::super::error::*;
 
 macro_rules! parse {
 	($func:ident, $parse_item:ident, $good_data:ident, $error_data:ident, $previous:ident, $dl:ident, $end_type:ty) => {
+		match $func(&$parse_item){
+			Ok(info_hash) => {
 
+				if $previous.contains(info_hash) {
+					// println!{"skipping torrent {}", info_hash}
+					continue
+				}
+				else {
+					$previous.insert(info_hash.to_string());
+				}
+				/*
+				match $dl.download($parse_item.link(), &info_hash) {
+					Ok(torrent) => {
+						match torrent.info.name() {
+							Ok(torrent_name) => {
+								match AnnounceComponents::new(torrent.announce, info_hash.to_string(), torrent.creation_date, torrent_name){
+									Ok(announce) => $good_data.push(announce),
+									Err(announce_err) => $error_data.push(announce_err) // store annouce error
+								}
+							},
+							Err(name_error) => $error_data.push(name_error)
+						} 
+					},
+
+					Err(link_error) => $error_data.push(link_error)// store link error
+				}
+				*/
+			},
+			Err(error) => $error_data.push(error)
+		}
 	};
 }
+
 // download xml data from a url as well as their associated torrents
 // return a vector of structs required to make announcements
 // will only Error if the provided url is incorrect
 pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error> {
 	let temp_folder : &'static str = r"C:\Users\Brooks\github\nyaa_tracker\temp";
 
+	let parse_funct = 
+		if url.contains(".si") {nyaa_si_hash}
+		else {nyaa_pantsu_hash};
 
 	let client = utils::https_connection(4);
 	let uri = url.parse().expect("rss url invalid");
@@ -86,8 +119,10 @@ pub fn get_xml(url: &str, previous: &mut HashSet<String>) -> Result<Data, Error>
 			Ok((items, good_data, error_data, dl))
 		})
 		.and_then(move |(items, mut good, mut bad, dl)| {
-			for _ in 0..good.capacity() {
-					//write parse macro + spawn futures here
+			for _ in 0..items.len() {
+				let item = items.remove(0);
+				
+
 			}
 
 
