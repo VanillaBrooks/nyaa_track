@@ -85,7 +85,7 @@ impl ToBencode for File {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Info {
     #[serde(rename="file-duration")]
     #[serde(default)]
@@ -238,7 +238,7 @@ impl ToBencode for Info {
 }
 
 //TODO fix nodes
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Torrent {
     pub info: Info,
 

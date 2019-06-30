@@ -25,7 +25,13 @@ pub struct AnnounceComponents {
 
 // TODO: fix unwrap
 impl <'a>AnnounceComponents  {
-	pub fn new (url: Option<String>, hash: String, creation_date: Option<i64>, title: String) -> Result<AnnounceComponents, Error> {
+	pub fn new (
+		url: Option<String>, 
+		hash: String, 
+		creation_date: Option<i64>, 
+		title: String
+		) -> Result<AnnounceComponents, Error> {
+
 		// i think this .is_some() is not needed since the outer match
 		if url.is_some(){
 			let url = url.unwrap();
@@ -174,8 +180,8 @@ impl <'a>AnnounceComponents  {
 				}
 			})
 	}
-
 }
+
 #[derive(Debug)]
 enum FetchError {
     Http(hyper::Error),

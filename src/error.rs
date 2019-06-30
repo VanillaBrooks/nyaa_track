@@ -1,5 +1,6 @@
 use postgres;
 use http;
+use super::read::Torrent;
 
 // from_type: Type that will be converted away from
 // to_type: Destination enum that we are converting to
@@ -38,6 +39,7 @@ macro_rules! impl_from {
     };
 }
 
+
 #[derive(Debug)]
 pub enum Error{
 	IO(std::io::Error),
@@ -50,7 +52,7 @@ pub enum Error{
 	Postgres(postgres::error::Error),
 	HTTP(HTTPErrors),
 	ShouldNeverHappen(String),
-	FuturesError
+	Futures(FuturesErrors)
 }
 
 impl From<reqwest::Error> for Error{
@@ -92,7 +94,11 @@ impl From<http::uri::InvalidUri> for Error {
 	fn from(error: http::uri::InvalidUri) -> Error {
 		return Error::HTTP(HTTPErrors::Uri(error))
 	}
-
+}
+impl From<futures::sync::mpsc::TrySendError<Torrent>> for Error {
+	fn from(erorr: futures::sync::mpsc::TrySendError<Torrent>) -> Self {
+		Error::Futures(FuturesErrors::TrySendError)
+	}
 }
 #[derive(Debug)]
 pub enum HTTPErrors {
@@ -120,14 +126,18 @@ pub enum TorrentErrors {
 	SerdeError(serde_bencode::Error),
 	MissingName
 }
-use futures::{Async, Poll};
-impl futures::future::Future for Error {
-	type Item = Error;
-	type Error = usize;
-	    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-
-            //  Ok(Async::Ready(2 * 2))
-			Ok(Async::Ready(Error::FuturesError))
-
-    }
+#[derive(Debug)]
+pub enum FuturesErrors {
+	TrySendError
 }
+// use futures::{Async, Poll};
+// impl futures::future::Future for Error {
+// 	type Item = Error;
+// 	type Error = usize;
+// 	    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+
+//             //  Ok(Async::Ready(2 * 2))
+// 			Ok(Async::Ready(Error::FuturesError))
+
+//     }
+// }

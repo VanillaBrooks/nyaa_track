@@ -3,6 +3,10 @@ use std::io::prelude::*;
 use hyper::rt::{Future, Stream};
 use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
+
+use futures::sync::mpsc;
+use futures::Async;
+
 // mod error;
 use super::error::*;
 
@@ -36,7 +40,7 @@ impl Downloader {
     pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
         Downloader{client: client }
     }
-    pub fn download(&self, url: &str, save_name: String) -> impl Future<Item=Torrent, Error=Error> {
+    pub fn download(&self, url: &str, save_name: String, mut tx: mpsc::Sender<Torrent>) -> impl Future<Item=(), Error=Error> {
         let url = url.parse().expect("URI was not able to be parsed correctly in Downloader::download");
 
         let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
@@ -50,17 +54,22 @@ impl Downloader {
             })
             .and_then(move |data| {
                 write_torrent_to_file(&data, &save_name);
-                Ok(data)
-            })
-            .and_then(|data|{
-                Torrent::new_bytes(&data)
+
+                match Torrent::new_bytes(&data) {
+                    Ok(torrent) => {
+                        tx.try_send(torrent)?;
+                        Ok(())
+                    },
+                    Err(e) => Err(e) 
+                }
+
             })
             .from_err::<Error>()
     }
 }
 
 // generate a .torrent file for the data
-pub fn write_torrent_to_file(data: &Vec<u8>, save_name: &str) -> Result<String, Error> {
+pub fn write_torrent_to_file(data: &Vec<u8>, save_name: &str) -> Result<String, Error> {        //TODO: async file write here
     let mut base = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
     base.push_str(save_name);
     base.push_str(".torrent");
