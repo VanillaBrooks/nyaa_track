@@ -51,14 +51,10 @@ fn load_problem_hash(hash: &str)  {
 	}
 }
 
-#[allow(dead_code)]
-const TORRENTS_DIR : &str= r"C:\Users\Brooks\github\nyaa_tracker\torrents\";
-#[allow(dead_code)]
-const SI_RSS: &str = r"https://nyaa.si/?page=rss";
-#[allow(dead_code)]
-const PANTSU_RSS : &str = r"https://nyaa.pantsu.cat/feed?";
-#[allow(dead_code)]
-const TEST_FILE :&str=  r"C:\Users\Brooks\Downloads\test.txt";
+#[allow(dead_code)]const TORRENTS_DIR : &str= r"C:\Users\Brooks\github\nyaa_tracker\torrents\";
+#[allow(dead_code)]const SI_RSS: &str = r"https://nyaa.si/?page=rss";
+#[allow(dead_code)]const PANTSU_RSS : &str = r"https://nyaa.pantsu.cat/feed?";
+#[allow(dead_code)]const TEST_FILE :&str=  r"C:\Users\Brooks\Downloads\test.txt";
 
 fn diff(title: &str, t1: &time::Instant, t2: &time::Instant) {
 	println!{"{}:\t{}", title, (*t2-*t1).as_millis()};

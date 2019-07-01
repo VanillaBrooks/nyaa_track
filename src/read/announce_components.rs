@@ -6,11 +6,13 @@ use std::io::prelude::*;
 
 use super::{AnnounceResult, ScrapeResult, ScrapeData, GenericData};
 
+use futures::sync::mpsc;
+
 use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
 use hyper::rt::{Future, Stream};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnnounceComponents {
 	pub url : String,
 	pub info_hash: String,
@@ -72,82 +74,20 @@ impl <'a>AnnounceComponents  {
 			Err(Error::Torrent(TorrentErrors::NoAnnounceUrl(hash.to_string())))
 		}
 	}
-/*
-	fn announce(self: &'a mut Self) -> Result<GenericData<'a>, Error> {
-		
-		// make sure that the tracker is going to let us make an announce call
-		if self.last_announce.is_some() {
-			let last = self.last_announce.unwrap().elapsed().as_secs() as i64;
-			let interval = self.interval.unwrap();
-			if last < interval {
-				return Err(
-					Error::Announce(
-						AnnounceErrors::AnnounceNotReady(interval - last)
-					))
-			}
-		}
 
-		// make a get request to the tracker
-		match reqwest::get(self.announce_url) {
-			Ok(mut response) => {
-
-				let mut buffer: Vec<u8> = Vec::with_capacity(150);
-				response.read_to_end(&mut buffer)?;
-				
-				let parse = AnnounceResult::new_bytes(&buffer, &self.info_hash, &self.url, &self.title, &self.creation_date)?;
-				if parse.data.interval.is_some() {
-					self.interval = parse.data.interval
-				}
-				self.last_announce = Some(std::time::Instant::now());
-
-				// update the next announce interval
-				match self.configure_next_announce(&parse.data.complete){
-					Some(new_interval) => self.interval = Some(new_interval),
-					None => ()
-				}
-
-				return Ok(GenericData::new(&self.info_hash,
-										&self.url,
-										&self.creation_date,
-										&self.title,
-										parse.data.downloaded,
-										parse.data.complete,
-										parse.data.incomplete))
-				
-			},
-
-			// there was a problem with the request (most likely the hash)
-			Err(_x) => {
-				dbg!{_x};
-				//TODO : log all information on the struct about this error here
-				return Err(
-					Error::Announce(
-						AnnounceErrors::AnnounceUrlError(url.clone())
-						)
-					)
-			}
-		}
-	}
-
-    fn configure_next_announce(self: &Self, seeds: &i64) -> Option<i64> {
-        let days : i64 = (utils::get_unix_time() - self.creation_date) / 86400;
-        let min_seeds : i64= 20; // number of seeds after time period where we check less frequently
-        let min_days = 7; // number of days when we check less frequently
-        
-        let new_interval = 6*60*60;
-
-        if (days < min_days) && (*seeds < min_seeds) {
-			return Some(new_interval)
-        }
-		else {
-			None
-		}
-    }
-*/
-	pub fn get(self: &'a mut Self, url: hyper::Uri) -> impl Future<Item=GenericData<'a>, Error=Error> {
+	pub fn get(
+		self: &Self,
+		) -> impl Future<Item=GenericData, Error=Error> {
+		// ) -> () {
 		let client = Client::new();
 
-		client
+
+		let hash = self.info_hash.clone();
+		let url = self.url.clone();
+		let creation_date = self.creation_date.clone();
+		let title = self.title.clone();
+
+		let mut request = client
 			// Fetch the url...
 			.get(self.scrape_url.clone())
 			// And then, if we get a response back...
@@ -158,28 +98,42 @@ impl <'a>AnnounceComponents  {
 			.from_err::<Error>()
 			.and_then(move |body| {
 				let data = body.into_bytes().into_iter().collect::<Vec<_>>();
-				// ScrapeData::new_bytes(&data)
+
 				match ScrapeData::new_bytes(&data) {
 					Ok(scrape) => {
+
+						// turn the parsed dictionary into an iterator
 						match scrape.files.values().into_iter().next(){
 							Some(data) => {
-								Ok(GenericData::new(
-									&self.info_hash,
-									&self.url,
-									&self.creation_date,
-									&self.title,
-									data.downloaded,
-									data.complete,
-									data.incomplete)
-								)
+								let gen_data = 
+									GenericData::new(
+										hash,					//TODO: make these RC values
+										url,
+										creation_date,
+										title,
+										data.downloaded,
+										data.complete,
+										data.incomplete);
+								
+								Ok(gen_data)
 							}
 							None => Err(Error::ShouldNeverHappen("the fields of scrapedata were not correctly filled".to_string()))
 						}
+
 					},
 					Err(_) => Err(Error::UrlError)
 				}
-			})
+			});
+		request
+		// let fut = request
+		// 	.map(|x| println!{"success in scrape data"})
+		// 	.map_err(|x| println!{"there was an error with the scrape"});
+		// tokio::spawn(fut);
 	}
+}
+
+struct Move{
+	test: String
 }
 
 #[derive(Debug)]

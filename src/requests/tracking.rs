@@ -2,27 +2,30 @@
 use super::super::read::{AnnounceResult ,AnnounceComponents, GenericData};
 use super::super::database;
 
+use futures::sync::mpsc;
+use futures::Future;
+
 use super::super::error::*;
 
-pub fn announce_all_components(components: &mut Vec<AnnounceComponents>) -> Vec<GenericData> {
-	// let mut announce_results = Vec::with_capacity(components.len()/10);
-	// let start_len = components.len() as i32;
+pub fn announce_all_components<'a>(
+	mut components: Vec<AnnounceComponents>,
+	tx: mpsc::Sender<GenericData>
+	) -> () {
 
-	// for item in components {
-	// 	match item.scrape() {
-	// 		Ok(announce) => {
-	// 			dbg!{&announce};
-	// 			announce_results.push(announce);
-	// 		}
-	// 		Err(error) => () // TODO: log the error here
-	// 	}
-	// }
-	// let res = announce_results.len() as i32;
+	for ann_cmp in components {
+		let mut tx_clone = tx.clone();
+	
+		let fut = ann_cmp.get()
+			.map(move |x| {
+				println!{"success in scrape data"}
+				tx_clone.try_send(x);
+				})
+	
+			.map_err(|x| println!{"there was an error with the scrape: {:?}", x});
 
-	// println!{"Announce Results:\nInput Count:\t{}\nSuccessful Announces:\t{}\nBad Announces:\t{}",start_len, res, (start_len-res)}
-	// return announce_results
+		tokio::spawn(fut);
+	}
 
-	unimplemented!()
 }
 
 

@@ -94,21 +94,43 @@ impl ScrapeData {
     }
 }
 
-#[derive(Debug)]
-pub struct GenericData <'a> {
-    pub hash: &'a String,
-    pub url: &'a String,
-    pub creation_date: &'a i64,
-    pub title: &'a String,
+// #[derive(Debug, Clone)]
+// pub struct GenericData <'a> {
+//     pub hash: &'a String,
+//     pub url: &'a String,
+//     pub creation_date: &'a i64,
+//     pub title: &'a String,
+//     pub downloaded: i64,
+//     pub complete: i64,
+//     pub incomplete: i64,
+//     pub poll_time: i64
+// }
+#[derive(Debug, Clone)]
+pub struct GenericData  {
+    pub hash: String,
+    pub url: String,
+    pub creation_date:i64,
+    pub title: String,
     pub downloaded: i64,
     pub complete: i64,
     pub incomplete: i64,
     pub poll_time: i64
-
 }
 
-impl <'a> GenericData <'a> {
-    pub fn new(hash: &'a String, url: &'a String, date: &'a i64, title: &'a String, downloaded: i64, complete: i64, incomplete: i64) -> GenericData<'a> {
+
+// impl <'a> GenericData <'a> {
+impl GenericData {
+    // pub fn new(hash: &'a String, url: &'a String, date: &'a i64, title: &'a String, downloaded: i64, complete: i64, incomplete: i64) -> GenericData<'a> {
+    pub fn new(
+        hash: String, 
+        url: String, 
+        date: i64, 
+        title: String, 
+        downloaded: i64, 
+        complete: i64, 
+        incomplete: i64
+        ) -> GenericData {
+
         GenericData {
             hash: hash,
             url: url,

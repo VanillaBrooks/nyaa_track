@@ -25,7 +25,7 @@ macro_rules! parse {
 				
 				// make sure we are not grabbing an old hash
 				if !$previous.contains(info_hash) {
-					$previous.insert(info_hash.to_string());
+					$previous.insert(info_hash.to_string());	// TODO: make this insert happen when we get the data back
 
 					// make sure the link is good
 					match $parse_item.link(){
@@ -36,7 +36,10 @@ macro_rules! parse {
 								good_url, 
 								info_hash.to_string(), 
 								tx)
-								.map(|x| println!{"recieved good torrent data!"})
+								.map(|x| {
+
+								println!{"recieved good torrent data!"}
+								})
 								.map_err(|x| println!{"ERROR with torrent data"});
 						tokio::spawn(download_fut);
 						}
@@ -96,13 +99,12 @@ pub fn get_xml<'a>(
 			let file = fs::File::open(&path).expect("file could not be opened");
 			let channel = rss::Channel::read_from(std::io::BufReader::new(file)).expect("error when reading rss");
 			let items = channel.into_items().to_vec();
-			let good_data : Vec<AnnounceComponents> = Vec::with_capacity(items.len());
-			let error_data: Vec<Error> = Vec::new();
+
 			let dl = utils::Downloader::new();
 
-			Ok((items, good_data, error_data, dl))
+			Ok((items, dl))
 		})
-		.and_then(move |(mut items, mut good, mut bad, dl)| {
+		.and_then(move |(mut items, dl)| {
 
 			for _ in 0..items.len() {
 				// let x = tx::clone();
@@ -121,18 +123,6 @@ pub fn get_xml<'a>(
 		for the error its because (tx || previous) is fucking up all the lifetimes
 
 	*/
-}
-
-
-#[derive(Debug)]
-pub struct Data {
-	pub good : Vec<AnnounceComponents>,
-	pub bad : Vec<Error>
-}
-impl Data {
-	fn new(good: Vec<AnnounceComponents>, bad : Vec<Error>) ->Self{ 
-		Data {good: good, bad: bad}
-	}
 }
 
 
