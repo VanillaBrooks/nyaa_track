@@ -1,6 +1,6 @@
 use postgres;
 use http;
-use super::read::Torrent;
+use super::read::{Torrent, AnnounceComponents};
 
 // from_type: Type that will be converted away from
 // to_type: Destination enum that we are converting to
@@ -100,6 +100,11 @@ impl From<futures::sync::mpsc::TrySendError<Torrent>> for Error {
 		Error::Futures(FuturesErrors::TrySendError)
 	}
 }
+impl From<futures::sync::mpsc::TrySendError<AnnounceComponents>> for Error {
+	fn from(erorr: futures::sync::mpsc::TrySendError<AnnounceComponents>) -> Self {
+		Error::Futures(FuturesErrors::TrySendError)
+	}
+}
 #[derive(Debug)]
 pub enum HTTPErrors {
 	Hyper(hyper::Error),
@@ -124,7 +129,8 @@ pub enum RssErrors {
 pub enum TorrentErrors {
 	NoAnnounceUrl(String),
 	SerdeError(serde_bencode::Error),
-	MissingName
+	MissingName,
+	InfoHash
 }
 #[derive(Debug)]
 pub enum FuturesErrors {

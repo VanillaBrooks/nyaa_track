@@ -6,7 +6,6 @@ use std::io::prelude::*;
 
 use super::{AnnounceResult, ScrapeResult, ScrapeData, GenericData};
 
-use futures::sync::mpsc;
 
 use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
@@ -17,12 +16,13 @@ pub struct AnnounceComponents {
 	pub url : String,
 	pub info_hash: String,
 	pub title: String,
-	creation_date: i64,
+	pub creation_date: i64,
 	announce_url: hyper::Uri,
 	scrape_url: hyper::Uri,
 	interval: Option<i64>,
 	last_announce: Option<std::time::Instant>,
-	client: Client<HttpsConnector<HttpConnector>>
+	client: Client<HttpsConnector<HttpConnector>>,
+	drop: bool
 }
 
 // TODO: fix unwrap
@@ -68,7 +68,8 @@ impl <'a>AnnounceComponents  {
 								scrape_url: scrape_url,
 								interval: None,
 								last_announce: None,
-								client: utils::https_connection(4)})
+								client: utils::https_connection(4),
+								drop: false})
 		}
 		else{
 			Err(Error::Torrent(TorrentErrors::NoAnnounceUrl(hash.to_string())))
@@ -125,11 +126,9 @@ impl <'a>AnnounceComponents  {
 				}
 			});
 		request
-		// let fut = request
-		// 	.map(|x| println!{"success in scrape data"})
-		// 	.map_err(|x| println!{"there was an error with the scrape"});
-		// tokio::spawn(fut);
+
 	}
+	
 }
 
 struct Move{

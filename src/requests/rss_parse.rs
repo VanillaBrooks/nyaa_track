@@ -3,12 +3,13 @@ use hyper::rt::{Future, Stream};
 use hyper::client::{Client, HttpConnector};
 use futures::sync::mpsc;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use rss;
 use std::fs;
 use std::io::prelude::*;
-use std::time;
+use std::time::{self, Duration};
+use std::thread;
 use super::super::read::{Torrent, AnnounceComponents};
 
 use hashbrown::HashSet;
@@ -17,6 +18,7 @@ use super::super::utils;
 
 use super::super::error::*;
 
+use parking_lot::RwLock;
 
 macro_rules! parse {
 	($parse_funct:ident, $parse_item:ident, $previous:ident, $dl:ident, $tx:ident) => {
@@ -24,28 +26,28 @@ macro_rules! parse {
 			Ok(info_hash) => {
 				
 				// make sure we are not grabbing an old hash
-				if !$previous.contains(info_hash) {
-					$previous.insert(info_hash.to_string());	// TODO: make this insert happen when we get the data back
+				{
+					let previous = $previous.read();
+					if previous.contains(info_hash) {continue}
+				}
+				thread::sleep(Duration::from_millis(1000));
 
-					// make sure the link is good
-					match $parse_item.link(){
-						Some(good_url) => {
-							let tx = $tx.clone();
-							//create a downloading future
-							let download_fut = $dl.download(
-								good_url, 
-								info_hash.to_string(), 
-								tx)
-								.map(|x| {
-
-								println!{"recieved good torrent data!"}
-								})
-								.map_err(|x| println!{"ERROR with torrent data"});
-						tokio::spawn(download_fut);
-						}
-
-						None => println!{"error with link"}
+				// make sure the link is good
+				match $parse_item.link(){
+					Some(good_url) => {
+						let tx = $tx.clone();
+						//create a downloading future
+						let download_fut = $dl.download(
+							good_url, 
+							info_hash.to_string(), 
+							tx
+							)
+							.map(|x| println!{"recieved good torrent data!"})
+							.map_err(|x| println!{"ERROR with torrent data {:?}", x});
+					tokio::spawn(download_fut);
 					}
+
+					None => println!{"error with link"}
 				}
 				
 			},
@@ -66,8 +68,8 @@ macro_rules! parse {
 // will only Error if the provided url is incorrect
 pub fn get_xml<'a>(
 	url: &str, 
-	previous: &'a mut HashSet<String>, 
-	tx: mpsc::Sender<Torrent>
+	previous: Arc<RwLock<HashSet<String>>>, 
+	tx: mpsc::Sender<AnnounceComponents>
 	// ) -> Result<Data, Error> {
 	) -> impl Future<Item=(), Error=Error> + 'a {
 
@@ -107,9 +109,10 @@ pub fn get_xml<'a>(
 		.and_then(move |(mut items, dl)| {
 
 			for _ in 0..items.len() {
-				// let x = tx::clone();
 				let item = items.remove(0);
+
 				parse!{parse_funct, item, previous, dl, tx};
+
 			}
 			Ok(())
 			

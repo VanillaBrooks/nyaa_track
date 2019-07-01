@@ -6,6 +6,7 @@ use hyper_tls::HttpsConnector;
 
 use futures::sync::mpsc;
 use futures::Async;
+use futures::sink::Sink;
 
 // mod error;
 use super::error::*;
@@ -40,7 +41,7 @@ impl Downloader {
     pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
         Downloader{client: client }
     }
-    pub fn download(&self, url: &str, save_name: String, mut tx: mpsc::Sender<Torrent>) -> impl Future<Item=(), Error=Error> {
+    pub fn download(&self, url: &str, save_name: String, mut tx: mpsc::Sender<AnnounceComponents>) -> impl Future<Item=(), Error=Error> {
         let url = url.parse().expect("URI was not able to be parsed correctly in Downloader::download");
 
         let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
@@ -57,7 +58,8 @@ impl Downloader {
 
                 match Torrent::new_bytes(&data) {
                     Ok(torrent) => {
-                        tx.try_send(torrent)?;
+                        let ann = torrent_to_announce_components(torrent)?;
+                        tx.send(ann).wait();
                         Ok(())
                     },
                     Err(e) => Err(e) 
@@ -304,4 +306,25 @@ pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
         dbg!{bad};
     }
 
+}
+
+pub fn torrent_to_announce_components(mut torrent: Torrent) -> Result<AnnounceComponents, Error>{
+    match torrent.info_hash(){
+        Ok(hash) => {
+            match torrent.info.name() {
+                Ok(name) => {
+                    let ann = 
+                    AnnounceComponents::new(
+                        torrent.announce,
+                        hash,
+                        torrent.creation_date,
+                        name
+                    )?;
+                    Ok(ann)
+                },
+                Err(_) => Err(Error::Torrent(TorrentErrors::MissingName))
+            }
+        },
+        Err(_) => Err(Error::Torrent(TorrentErrors::InfoHash))
+    }
 }

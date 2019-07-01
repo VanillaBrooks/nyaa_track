@@ -2,9 +2,10 @@ use super::connection;
 use super::super::error::*;
 use super::super::read::AnnounceComponents;
 
+
 macro_rules! construct {
     ($type:ident) => {
-        let conn = connection::start()?;
+        let conn = connection::start_sync()?;
         let pull = conn.prepare("SELECT info_hash, creation_date, title, announce_url FROM info")?;
 
 
