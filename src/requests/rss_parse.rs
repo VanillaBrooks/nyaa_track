@@ -88,7 +88,7 @@ pub fn get_xml<'a>(
 			let data = data.into_bytes().into_iter().collect::<Vec<u8>>();
 
 			// create XML file path
-			let mut path: String = r"C:\Users\Brooks\github\nyaa_tracker\temp".to_string();
+			let mut path: String = r".\temp".to_string();
 			path.push_str(r"\");
 			path.push_str(&utils::get_unix_time().to_string());
 			path.push_str(".xml");
@@ -101,6 +101,8 @@ pub fn get_xml<'a>(
 			let file = fs::File::open(&path).expect("file could not be opened");
 			let channel = rss::Channel::read_from(std::io::BufReader::new(file)).expect("error when reading rss");
 			let items = channel.into_items().to_vec();
+
+			std::fs::remove_file(path);
 
 			let dl = utils::Downloader::new();
 
@@ -118,14 +120,6 @@ pub fn get_xml<'a>(
 			
 		})
 
-
-	/* 
-	
-		NOTE TO BROOKS
-
-		for the error its because (tx || previous) is fucking up all the lifetimes
-
-	*/
 }
 
 

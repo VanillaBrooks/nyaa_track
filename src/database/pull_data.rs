@@ -31,7 +31,3 @@ macro_rules! construct {
 pub fn database_announce_components() -> Result<Vec<AnnounceComponents>, Error> {
     construct!(AnnounceComponents);
 }
-
-// pub fn database_scrape_components() -> Result<Vec<ScrapeComponents>, Error> {
-//     construct!(ScrapeComponents);
-// }

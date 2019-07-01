@@ -54,7 +54,7 @@ impl Downloader {
                 Ok(data)
             })
             .and_then(move |data| {
-                write_torrent_to_file(&data, &save_name);
+                // write_torrent_to_file(&data, &save_name);
 
                 match Torrent::new_bytes(&data) {
                     Ok(torrent) => {

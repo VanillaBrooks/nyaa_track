@@ -89,7 +89,3 @@ pub fn update_database(stats: &Vec<GenericData>) -> Result<(), Error> {
 
 	Ok(())
 }
-
-    // pub complete: i64, //seeds
-    // pub incomplete: i64, // downloading now
-    // pub downloaded: i64,  // snatches

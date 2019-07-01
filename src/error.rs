@@ -136,14 +136,3 @@ pub enum TorrentErrors {
 pub enum FuturesErrors {
 	TrySendError
 }
-// use futures::{Async, Poll};
-// impl futures::future::Future for Error {
-// 	type Item = Error;
-// 	type Error = usize;
-// 	    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-
-//             //  Ok(Async::Ready(2 * 2))
-// 			Ok(Async::Ready(Error::FuturesError))
-
-//     }
-// }
