@@ -6,7 +6,7 @@ use super::super::read::AnnounceComponents;
 macro_rules! construct {
     ($type:ident) => {
         let conn = connection::start_sync()?;
-        let pull = conn.prepare("SELECT info_hash, creation_date, title, announce_url FROM info")?;
+        let pull = conn.prepare("SELECT info_hash, creation_date, title, announce_url FROM info WHERE announce_url='http://nyaa.tracker.wf:7777/announce'")?;
 
 
         let count = conn.query("SELECT COUNT(*) FROM info", &[])?;
