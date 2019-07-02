@@ -46,14 +46,14 @@ pub fn announce_all_components(
 					// println!{"success in scrape data"}
 					tx_clone.send(x).wait();
 					})
-				.map_err(|_| ());
+				.map_err(|e| println!{"scrape err: {:?}",e});
 				// .map_err(|x| println!{"there was an error with the scrape: {:?}", x});
 
 
 			// dbg!{"spawned fut"};
 			tokio::spawn(fut);
 
-			thread::sleep(Duration::from_millis(100));
+			thread::sleep(Duration::from_millis(50));
 		}
 	} // read lock is dropped 
 

@@ -96,6 +96,9 @@ pub fn get_xml<'a>(
 
 			// create XML file path
 			let mut path: String = r".\temp".to_string();
+
+			std::fs::create_dir(&path);
+
 			path.push_str(r"\");
 			path.push_str(&utils::get_unix_time().to_string());
 			path.push_str(".xml");
