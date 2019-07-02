@@ -21,8 +21,7 @@ pub struct AnnounceComponents {
 	scrape_url: hyper::Uri,
 	interval: Option<i64>,
 	last_announce: Option<std::time::Instant>,
-	client: Client<HttpsConnector<HttpConnector>>,
-	drop: bool
+	client: Client<HttpsConnector<HttpConnector>>
 }
 
 // TODO: fix unwrap
@@ -68,8 +67,7 @@ impl <'a>AnnounceComponents  {
 								scrape_url: scrape_url,
 								interval: None,
 								last_announce: None,
-								client: utils::https_connection(4),
-								drop: false})
+								client: utils::https_connection(4)})
 		}
 		else{
 			Err(Error::Torrent(TorrentErrors::NoAnnounceUrl(hash.to_string())))
@@ -106,6 +104,9 @@ impl <'a>AnnounceComponents  {
 						// turn the parsed dictionary into an iterator
 						match scrape.files.values().into_iter().next(){
 							Some(data) => {
+
+								// dbg!{"scrape data acquired"};
+
 								let gen_data = 
 									GenericData::new(
 										hash,					//TODO: make these RC values
@@ -129,26 +130,4 @@ impl <'a>AnnounceComponents  {
 
 	}
 	
-}
-
-struct Move{
-	test: String
-}
-
-#[derive(Debug)]
-enum FetchError {
-    Http(hyper::Error),
-    // Json(serde_json::Error),
-    Error
-}
-
-impl From<hyper::Error> for FetchError {
-    fn from(err: hyper::Error) -> FetchError {
-        FetchError::Http(err)
-    }
-}
-impl From<Error> for FetchError{
-    fn from(err: Error) -> FetchError {
-        FetchError::Error
-    }
 }

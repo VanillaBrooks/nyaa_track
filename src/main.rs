@@ -24,17 +24,25 @@ use futures::future::lazy;
 use futures::{Future, Stream};
 // use futures::stream::Stream;
 
-macro_rules! rss_check {
-	($timer:ident, $announce:ident, $prev:ident) => {
-		if $timer.allow_check() {
+use hashbrown::HashSet;
 
-			match rss_parse::get_xml($timer.url, &mut $prev) {
-				Ok(data) => {
-					let mut filt_data = utils::filter_nyaa_announces(data.good);
-					$announce.append(&mut filt_data);
-				},
-				Err(err) => () //TODO log the error 
-			}
+/// Macro instead of function since this will reduce the ammount of 
+/// clones needed (ownership is retained since it is inlined)
+macro_rules! rss_check {
+	($timer:ident, $previous:ident, $tx_ann:ident) => {
+		if $timer.allow_check() {
+			dbg!{"running rss check"};
+			let rss_previous_clone = $previous.clone();
+			let tx_ann_clone = $tx_ann.clone();
+
+			let rss_fut = rss_parse::get_xml(
+				$timer.url,
+				rss_previous_clone, 
+				tx_ann_clone)
+					.map(|_| println!{"finished RSS write"})
+					.map_err(|e| println!{"Error with RSS task "});
+			tokio::spawn(rss_fut);
+
 		}
 	};
 }
@@ -63,30 +71,35 @@ fn load_problem_hash(hash: &str)  {
 
 fn main() {
 
-	let (tx_gen, rx_gen) = mpsc::channel::<read::GenericData>(1_024*100*1000);			// 100 MB cache
-	let (tx_ann, rx_ann) = mpsc::channel::<read::AnnounceComponents>(1_024*100*1000); 	// 100 MB cache
+	let (tx_gen, rx_gen) = mpsc::channel::<read::GenericData>(1_024*1_024*100);			// 100 MB cache
+	let (tx_ann, rx_ann) = mpsc::channel::<read::AnnounceComponents>(1_024*1_024*100); 	// 100 MB cache
+	let (tx_allow_ann, rx_allow_ann) = mpsc::channel::<bool>(1024); 					// 1   MB cache
 
-	let all_announce_components = Arc::new(RwLock::new(Vec::new()));
-	let previous = Arc::new(RwLock::new(utils::info_hash_set(TORRENTS_DIR)));
-	{
-		let len = previous.read().len();
-		let len2 = all_announce_components.read().len();
-		println!{":::::::::::::::::::::::starting length previous : {} announce: {} ", len, len2}
-	}
+	let all_announce_components : Arc<RwLock<Vec<AnnounceComponents>>>= Arc::new(RwLock::new(Vec::new()));
 
 
 	let mut database_announces = database::pull_data::database_announce_components().expect("sync database pull error");
-		// .into_iter().take(10).collect();
+	let previous_hashes = database_announces.iter().map(|x| x.info_hash.to_string()).collect::<HashSet<_>>();
+		// .into_iter().take(100).collect();
+	let mut previous = Arc::new(RwLock::new(previous_hashes));
 
+	// let previous = Arc::new(RwLock::new(HashSet::new()));
+	
 	{
 		let mut ann = all_announce_components.write();
 		ann.append(&mut database_announces);
 	}
 
+	// {
+	// 	let len = previous.read().len();
+	// 	// let len2 = all_announce_components.read().len();
+	// 	println!{":::::::::::::::::::::::starting length previous : {} announce: {} ", len, len2}
+	// }
+
 	// all_announce_components.append(&mut database_announces);
 
 
-	// let mut si_timer = rss_parse::Timer::new(60*5, SI_RSS);
+	let mut si_timer = rss_parse::Timer::new(60, SI_RSS);
 	// let mut pantsu_timer = rss_parse::Timer::new(60*5, PANTSU_RSS);
 
 	let runtime = 
@@ -96,10 +109,10 @@ fn main() {
 				updater for the announce vector
 				this is the only area lock.write() should be called
 			*/
-			let updater_previous_clone = previous.clone();
-			let all_announce_clone = all_announce_components.clone();
+			let updater_previous_clone = previous.clone();					// hashset of previously downloaded hashes
+			let all_announce_clone = all_announce_components.clone();		// arc mutex of announce components
 
-			let new_ann = 
+			let update_announce_vec = 
 				rx_ann.for_each(move |announce| {
 
 					{ //scope for locks
@@ -114,54 +127,66 @@ fn main() {
 						
 					} // drop lock
 
-					println!{" added new values to hashmap"}
+					println!{" added new values to hashmap"};
 
 					Ok(())
 				})
 				.map(|x| println!{"drop updater for hashmap / announce vector "});
-			tokio::spawn(new_ann);
+			tokio::spawn(update_announce_vec);
+
+			/*
+				task for starting new scrapes once a acceptance message comes from the previous scrape
+			*/
+
+			let fut_tx_allow_ann = tx_allow_ann.clone();				// allows an announce seq to start
+			let fut_tx_gen = tx_gen.clone();							// passes data to database struct
+			let fut_all_announce = all_announce_components.clone();		// arc mutex of announce components
+
+			let allow_new_scrapes = 
+				rx_allow_ann.for_each(move |_| {
+					
+					println!{":::::::::: scrape has ended, we are allowing a new scrape"};
+
+					let arc_announce = fut_all_announce.clone();
+					let tx_gen_clone = fut_tx_gen.clone();
+					let tx_allow_ann_clone = fut_tx_allow_ann.clone();
+
+					requests::tracking::announce_all_components(arc_announce, tx_gen_clone, tx_allow_ann_clone);
+					Ok(())
+				})
+				.map(|_| println!{"dropped allowance for new scrapes"});
+			tokio::spawn(allow_new_scrapes);
+
 
 			/*
 				Start async database
 			*/
 			database::connection::start_async(rx_gen);
 
+			/*
+
+				start initial scrape
+
+			*/
+			let tx_gen_clone = tx_gen.clone();
+			let tx_allow_ann_clone = tx_allow_ann.clone();
+			let requests_announce_clone = all_announce_components.clone();
+			requests::tracking::announce_all_components(requests_announce_clone,tx_gen_clone, tx_allow_ann_clone);
 			
 
 			loop {
-				let tx_gen_clone = tx_gen.clone();
-				let tx_ann_clone = tx_ann.clone();
-
-				let rss_previous_clone = previous.clone();
-				let rss_fut = rss_parse::get_xml(SI_RSS, rss_previous_clone, tx_ann_clone)
-					.map(|x| println!{"finished rss write"})
-					.map_err(|x|  println!{"error with rss parse"});
-				tokio::spawn(rss_fut);
 				/*
-					fetch rss
+					fetch rss when the timer on it allows us to do so.
 				*/
-				
-				/*
-					Make get requests
-				*/
-				let requests_announce_clone = all_announce_components.clone();
-				requests::tracking::announce_all_components(requests_announce_clone,tx_gen_clone);
 
-
-				{
-				let len = previous.read().len();
-				let len2 = all_announce_components.read().len();
-				println!{":::::::::::::::::::::::ending length previous : {} announce: {} ", len, len2}
-				}
-
+				rss_check!{si_timer, previous, tx_ann};
 
 			}
-
 
 			Ok(())
 		});
 
 	dbg!{"spawning runtime"};
-	tokio::run (runtime);
+	tokio::run(runtime);
 
 }

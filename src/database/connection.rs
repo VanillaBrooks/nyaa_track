@@ -43,7 +43,9 @@ pub fn start_async(mut rx: mpsc::Receiver<GenericData>) {
                 // loop {
                 let data = 
                     rx.for_each(move |res|{
-                        dbg!{"database write"};
+
+                        // dbg!{"database write"};
+
                         client.query(&prep_info, &[&res.hash, &res.url, &res.creation_date, &res.title]).collect().poll();
                         client.query(&prep_data, &[&res.hash, &res.url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]).collect().poll();
                         Ok(())

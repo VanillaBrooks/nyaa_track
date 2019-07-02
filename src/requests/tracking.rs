@@ -6,6 +6,8 @@ use futures::sync::mpsc;
 use futures::Future;
 use futures::sink::Sink;
 
+use tokio::timer::Timeout;
+
 use super::super::error::*;
 use super::super::utils;
 
@@ -15,20 +17,18 @@ use parking_lot::RwLock;
 use std::thread;
 use std::time::Duration;
 
-pub fn announce_all_components<'a>(
+pub fn announce_all_components(
 	components_arc: Arc<RwLock<Vec<AnnounceComponents>>>,
-	tx: mpsc::Sender<GenericData>
+	tx: mpsc::Sender<GenericData>,
+	tx_allow_spawn: mpsc::Sender<bool>
 	) -> () {
 
-	dbg!{"starting to announce all comp"};
+	// dbg!{"starting to announce all comp"};
 	let mut drop_indicies = Vec::new();
 	{
-		let mut components = components_arc.read();
-
+		let components = components_arc.read();
 		let current_time = utils::get_unix_time();
 		
-
-
 		for i in 0..components.len() {
 			let ann_cmp = components.get(i).expect("components index out of bounds which should not happen");
 			let time_diff =  (current_time - ann_cmp.creation_date) / 86400;
@@ -39,15 +39,15 @@ pub fn announce_all_components<'a>(
 				continue
 			}
 			
-			let mut tx_clone = tx.clone();
+			let tx_clone = tx.clone();
 			
-			let fut = ann_cmp.get()
+			let fut = Timeout::new(ann_cmp.get() , Duration::from_secs(10))
 				.map(move |x| {
 					// println!{"success in scrape data"}
-					let mut sink = tx_clone.send(x).wait();
+					tx_clone.send(x).wait();
 					})
-		
-				.map_err(|x| println!{"there was an error with the scrape: {:?}", x});
+				.map_err(|_| ());
+				// .map_err(|x| println!{"there was an error with the scrape: {:?}", x});
 
 
 			// dbg!{"spawned fut"};
@@ -58,34 +58,16 @@ pub fn announce_all_components<'a>(
 	} // read lock is dropped 
 
 	let mut components = components_arc.write();
+
+	// the write lock has been acquired, which means that there are no longer read references to the announce components, we can now send the signal to start a new scrape
+	// Note that this would mean that the database has to insert all the data, but given that this happens asyncronously it should not be a large portion of overhead
+	tx_allow_spawn.send(true).wait();
+
 	// iterate from top to bottom so we dont mess up the future indexing
+	// removes data from the vector that is expired
 	for i in drop_indicies.iter().rev() {
 		components.remove(*i);
 
 	}
 
-}
-
-
-pub fn update_database(stats: &Vec<GenericData>) -> Result<(), Error> {
-	let conn = database::connection::start_sync()?;
-	
-	let prepare_info = conn.prepare("INSERT INTO info (info_hash, announce_url, creation_date, title) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING").unwrap();
-	let prepare_data = conn.prepare("with ref_id as (select id from info where info_hash=$1 and announce_url =$2) insert into stats (stats_id, downloaded, seeding, incomplete, poll_time) values ((select * from ref_id), $3,$4,$5,$6)").unwrap();
-	
-	for res in stats{
-
-		match prepare_info.execute(&[&res.hash, &res.url, &res.creation_date, &res.title]){
-			Ok(_) => (),
-			Err(error) => () // TODO log error
-		}
-
-		match prepare_data.execute(&[&res.hash, &res.url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]) {
-			Ok(_) => (),
-			Err(error) => () // TODO: log error
-		}
-
-	}
-
-	Ok(())
 }

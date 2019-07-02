@@ -2,6 +2,7 @@
 use hyper::rt::{Future, Stream};
 use hyper::client::{Client, HttpConnector};
 use futures::sync::mpsc;
+use tokio::timer::Timeout;
 
 use std::sync::Arc;
 
@@ -30,20 +31,24 @@ macro_rules! parse {
 					let previous = $previous.read();
 					if previous.contains(info_hash) {continue}
 				}
-				thread::sleep(Duration::from_millis(1000));
+				// if we are about to download the torrent sleep it for 1 second 
+				// prevents tracker from blocking us
+				thread::sleep(Duration::from_millis(300));
 
 				// make sure the link is good
 				match $parse_item.link(){
 					Some(good_url) => {
 						let tx = $tx.clone();
 						//create a downloading future
-						let download_fut = $dl.download(
-							good_url, 
-							info_hash.to_string(), 
-							tx
-							)
+						let download_fut = Timeout::new(
+							$dl.download(
+								good_url, 
+								info_hash.to_string(), 
+								tx
+								),
+							Duration::from_secs(5))		// each future has 5 seconds to complete)
 							.map(|x| println!{"recieved good torrent data!"})
-							.map_err(|x| println!{"ERROR with torrent data {:?}", x});
+							.map_err(|x| println!{"Error downloading torrent data"});
 					tokio::spawn(download_fut);
 					}
 
@@ -81,6 +86,8 @@ pub fn get_xml<'a>(
 	let client = utils::https_connection(10);
 	let uri = url.parse().expect("rss url invalid");
 
+	dbg!{"in get_xml"};
+
 	client.get(uri)
 		.and_then(|res| res.into_body().concat2())
 		.from_err::<Error>()
@@ -111,6 +118,7 @@ pub fn get_xml<'a>(
 		.and_then(move |(mut items, dl)| {
 
 			for _ in 0..items.len() {
+
 				let item = items.remove(0);
 
 				parse!{parse_funct, item, previous, dl, tx};
