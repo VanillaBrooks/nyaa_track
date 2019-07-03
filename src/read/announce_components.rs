@@ -3,13 +3,18 @@ use super::super::utils;
 use super::super::requests::url_encoding;
 
 use std::io::prelude::*;
+use std::time::Duration;
 
 use super::{AnnounceResult, ScrapeResult, ScrapeData, GenericData};
 
+use futures::sync::mpsc;
+use futures::sink::Sink;
 
 use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
 use hyper::rt::{Future, Stream};
+
+use tokio::timer::Timeout;
 
 #[derive(Debug, Clone)]
 pub struct AnnounceComponents {
@@ -75,9 +80,10 @@ impl <'a>AnnounceComponents  {
 	}
 
 	pub fn get(
-		self: &Self,
-		) -> impl Future<Item=GenericData, Error=Error> {
-		// ) -> () {
+		self,
+		tx_announce: mpsc::Sender<AnnounceComponents>,
+		tx_database: mpsc::Sender<GenericData>
+		) -> () {
 		let client = Client::new();
 
 
@@ -107,6 +113,13 @@ impl <'a>AnnounceComponents  {
 
 								// dbg!{"scrape data acquired"};
 
+								if self.allow_future_scrapes(&data.complete){
+									tx_announce.send(self).wait();
+								}
+								else{
+									println!{"dropping item"}
+								}
+
 								let gen_data = 
 									GenericData::new(
 										hash,					//TODO: make these RC values
@@ -116,8 +129,9 @@ impl <'a>AnnounceComponents  {
 										data.downloaded,
 										data.complete,
 										data.incomplete);
-								
+
 								Ok(gen_data)
+								
 							}
 							None => Err(Error::ShouldNeverHappen("the fields of scrapedata were not correctly filled".to_string()))
 						}
@@ -126,8 +140,30 @@ impl <'a>AnnounceComponents  {
 					Err(_) => Err(Error::UrlError)
 				}
 			});
-		request
 
+
+		let fut = 
+		Timeout::new(request , Duration::from_secs(10))
+				.map(move |x| {
+					// println!{"success in scrape data"}
+					tx_database.send(x).wait();
+					})
+				.map_err(|_| ());
+
+		tokio::spawn(fut);
+
+	}
+
+	fn allow_future_scrapes(&self, seeders: &i64) -> bool {
+		let days_alive = (utils::get_unix_time() - self.creation_date) / 86400;
+
+		// older than 7 days, less than 100 active seeders we terminate tracking
+		if days_alive > 7 && *seeders < 100 {
+			false
+		}
+		else {
+			true
+		}
 	}
 	
 }
