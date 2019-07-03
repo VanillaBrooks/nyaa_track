@@ -14,7 +14,7 @@ pub fn start_sync() -> Result<Connection, postgres::Error>{
 }
 
 
-pub fn start_async(mut rx: mpsc::Receiver<GenericData>) {
+pub fn start_async(rx: mpsc::Receiver<GenericData>) {
     
     let database =
         tokio_postgres::connect("postgresql://postgres:pass@localhost/nyaa", NoTls)
@@ -40,26 +40,23 @@ pub fn start_async(mut rx: mpsc::Receiver<GenericData>) {
             })
 
             .and_then(move |(mut client, prep_info, prep_data)| {
-                // loop {
+
                 let data = 
                     rx.for_each(move |res|{
 
-                        // dbg!{"database write"};
+                        // println!{"database write"};
 
                         client.query(&prep_info, &[&res.hash, &res.url, &res.creation_date, &res.title]).collect().poll();
                         client.query(&prep_data, &[&res.hash, &res.url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]).collect().poll();
+
                         Ok(())
                     })
                     .map(|x|println!{"finished insertion"});
                 tokio::spawn(data);
-                // }
+
 
             Ok(())
-                // let fut = recv;
-                    // .map(|x| ());
-                    // .map_err(|x| ());
-                // tokio::spawn(fut);
-                // Ok(())
+
             });
 
     let fut = 

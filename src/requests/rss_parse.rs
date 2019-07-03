@@ -74,7 +74,7 @@ macro_rules! parse {
 pub fn get_xml<'a>(
 	url: &str, 
 	previous: Arc<RwLock<HashSet<String>>>, 
-	tx: mpsc::Sender<AnnounceComponents>
+	tx_to_filter: mpsc::Sender<AnnounceComponents>
 	// ) -> Result<Data, Error> {
 	) -> impl Future<Item=(), Error=Error> + 'a {
 
@@ -124,7 +124,7 @@ pub fn get_xml<'a>(
 
 				let item = items.remove(0);
 
-				parse!{parse_funct, item, previous, dl, tx};
+				parse!{parse_funct, item, previous, dl, tx_to_filter};
 
 			}
 			Ok(())
