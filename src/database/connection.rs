@@ -9,6 +9,21 @@ use super::super::read::*;
 
 use std::sync::Arc;
 
+macro_rules! raw {
+    (into; $($arc_name:expr => $new_name:ident),+) => {
+        $(
+            // dbg!{"hi"};
+            let $new_name = Arc::into_raw($arc_name);
+        )+
+    };
+    (from; $($arc_name:ident),+) => {
+        $(
+            let $arc_name = unsafe {Arc::from_raw($arc_name)};
+        )+
+    };
+}
+
+
 //postgresql://postgres:pass@localhost[:port][/database][?param1=val1[[&param2=val2]...]]
 pub fn start_sync() -> Result<Connection, postgres::Error>{
     let url : &'static str = "postgresql://postgres:pass@localhost/nyaa";
@@ -48,10 +63,22 @@ pub fn start_async(rx: mpsc::Receiver<GenericData>) {
 
                         // println!{"database write"};
 
-                        let hash = res.hash.into_raw();
+                        // get pointer references to interior of Arc
+                        raw!{into;
+                            res.hash => hash,
+                            res.url => url,
+                            res.creation_date => creation_date,
+                            res.title => title
+                        }
 
-                        // client.query(&prep_info, &[&res.hash, &res.url, &res.creation_date, &res.title]).collect().poll();
-                        // client.query(&prep_data, &[&res.hash, &res.url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]).collect().poll();
+                        unsafe{
+                            client.query(&prep_info, &[&*hash, &*url, &*creation_date, &*title]).collect().poll();
+                            client.query(&prep_data, &[&*hash, &*url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]).collect().poll();
+                        }
+
+                        // move back to Arc to prevent memory leak
+                        raw!{from; hash, url, creation_date, title}
+
                         Ok(())
                     })
                     .map(|x|println!{"finished insertion"});

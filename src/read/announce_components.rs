@@ -6,6 +6,8 @@ use std::io::prelude::*;
 use std::time::Duration;
 
 use super::{AnnounceResult, ScrapeResult, ScrapeData, GenericData};
+use futures::sync::mpsc;
+use futures::Sink;
 
 use std::sync::Arc;
 
@@ -150,7 +152,12 @@ impl <'a>AnnounceComponents  {
 	}
 
 	fn allow_future_scrapes(&self, seeders: &i64) -> bool {
-		let days_alive = (utils::get_unix_time() - self.creation_date) / 86400;
+		let creation_data_ptr = Arc::into_raw(self.creation_date.clone());
+		let creation_date = unsafe{*creation_data_ptr};
+		
+		unsafe {Arc::from_raw(creation_data_ptr) };
+
+		let days_alive = (utils::get_unix_time() - creation_date) / 86400;
 
 		// older than 7 days, less than 100 active seeders we terminate tracking
 		if days_alive > 7 && *seeders < 100 {
