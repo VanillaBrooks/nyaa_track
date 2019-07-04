@@ -19,6 +19,7 @@ use std::thread;
 use std::time::Duration;
 use tokio::timer;
 
+use tokio::prelude::*;
 
 /// starts task for cycling through scrapes
 /// recieves announce component and spawns a request after a timer
@@ -30,16 +31,16 @@ pub fn start_scrape_cycle_task(
 	) -> () {
 
 
-	let inter_wrap = timer::Interval::new_interval(Duration::from_millis(100));
+	// let inter_wrap = timer::Interval::new_interval(Duration::from_millis(100));
 
 	let allow_new_scrapes = 
-		rx_to_scrape.for_each(move |ann|{
+		rx_to_scrape.throttle(Duration::from_millis(100)).for_each(move |ann|{
 
-			thread::sleep(Duration::from_millis(100));
 			ann.get(tx_to_scrape.clone(), tx_generic.clone());
 
 			Ok(())
-		});
+		})
+		.map_err(|e| println!{"ERROR MAIN SCRAPE {:?}",e});
 		
 		
 	tokio::spawn(allow_new_scrapes);
@@ -66,7 +67,7 @@ pub fn filter_new_announces(
 
 			Ok(())
 		})
-		.map(|x| ());
+		.map(|x| println!{"ERROR MAIN FILTERING {:?}",e});
 
 	tokio::spawn(filter);
 }

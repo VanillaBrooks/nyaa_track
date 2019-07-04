@@ -85,8 +85,7 @@ pub fn get_xml<'a>(
 
 	let client = utils::https_connection(10);
 	let uri = url.parse().expect("rss url invalid");
-
-	dbg!{"in get_xml"};
+	
 
 	client.get(uri)
 		.and_then(|res| res.into_body().concat2())

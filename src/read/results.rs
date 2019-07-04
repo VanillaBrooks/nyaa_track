@@ -8,6 +8,8 @@ use super::super::utils;
 use std::time;
 use std::collections::HashMap;
 
+use std::sync::Arc;
+
 
 #[derive(Debug)]
 pub struct AnnounceResult <'a> {
@@ -97,10 +99,10 @@ impl ScrapeData {
 
 #[derive(Debug, Clone)]
 pub struct GenericData  {
-    pub hash: String,
-    pub url: String,
-    pub creation_date:i64,
-    pub title: String,
+    pub hash: Arc<String>,
+    pub url: Arc<String>,
+    pub creation_date: Arc<i64>,
+    pub title: Arc<String>,
     pub downloaded: i64,
     pub complete: i64,
     pub incomplete: i64,
@@ -111,10 +113,10 @@ pub struct GenericData  {
 // impl <'a> GenericData <'a> {
 impl GenericData {
     pub fn new(
-        hash: String, 
-        url: String, 
-        date: i64, 
-        title: String, 
+        hash: Arc<String>, 
+        url: Arc<String>, 
+        date: Arc<i64>, 
+        title: Arc<String>, 
         downloaded: i64, 
         complete: i64, 
         incomplete: i64

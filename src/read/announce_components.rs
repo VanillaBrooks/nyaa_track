@@ -6,9 +6,10 @@ use std::io::prelude::*;
 use std::time::Duration;
 
 use super::{AnnounceResult, ScrapeResult, ScrapeData, GenericData};
-
 use futures::sync::mpsc;
-use futures::sink::Sink;
+use futures::Sink;
+
+use std::sync::Arc;
 
 use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
@@ -18,14 +19,12 @@ use tokio::timer::Timeout;
 
 #[derive(Debug, Clone)]
 pub struct AnnounceComponents {
-	pub url : String,
-	pub info_hash: String,
-	pub title: String,
-	pub creation_date: i64,
+	pub url : Arc<String>,
+	pub info_hash: Arc<String>,
+	pub title: Arc<String>,
+	pub creation_date: Arc<i64>,
 	announce_url: hyper::Uri,
 	scrape_url: hyper::Uri,
-	interval: Option<i64>,
-	last_announce: Option<std::time::Instant>,
 	client: Client<HttpsConnector<HttpConnector>>
 }
 
@@ -64,14 +63,12 @@ impl <'a>AnnounceComponents  {
 			let url_struct = url_encoding::ScrapeUrl::new(&hash);
 			let scrape_url = url_struct.announce_to_scrape(&url)?.parse()?;
 			
-			Ok(AnnounceComponents {url: url,
-								info_hash: hash, 
-								creation_date: date,
-								title: title,
+			Ok(AnnounceComponents {url: Arc::new(url),
+								info_hash: Arc::new(hash), 
+								creation_date: Arc::new(date),
+								title: Arc::new(title),
 								announce_url: ann_url,
 								scrape_url: scrape_url,
-								interval: None,
-								last_announce: None,
 								client: utils::https_connection(4)})
 		}
 		else{
@@ -155,7 +152,12 @@ impl <'a>AnnounceComponents  {
 	}
 
 	fn allow_future_scrapes(&self, seeders: &i64) -> bool {
-		let days_alive = (utils::get_unix_time() - self.creation_date) / 86400;
+		let creation_data_ptr = Arc::into_raw(self.creation_date.clone());
+		let creation_date = unsafe{*creation_data_ptr};
+		
+		unsafe {Arc::from_raw(creation_data_ptr) };
+
+		let days_alive = (utils::get_unix_time() - creation_date) / 86400;
 
 		// older than 7 days, less than 100 active seeders we terminate tracking
 		if days_alive > 7 && *seeders < 100 {
