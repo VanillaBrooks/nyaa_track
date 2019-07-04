@@ -67,7 +67,7 @@ pub fn filter_new_announces(
 
 			Ok(())
 		})
-		.map(|x| println!{"ERROR MAIN FILTERING {:?}",e});
+		.map(|e| println!{"ERROR MAIN FILTERING {:?}",e});
 
 	tokio::spawn(filter);
 }
