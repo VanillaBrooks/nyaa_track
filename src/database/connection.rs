@@ -7,6 +7,8 @@ use tokio_postgres::NoTls;
 
 use super::super::read::*;
 
+use std::sync::Arc;
+
 //postgresql://postgres:pass@localhost[:port][/database][?param1=val1[[&param2=val2]...]]
 pub fn start_sync() -> Result<Connection, postgres::Error>{
     let url : &'static str = "postgresql://postgres:pass@localhost/nyaa";
@@ -46,9 +48,10 @@ pub fn start_async(rx: mpsc::Receiver<GenericData>) {
 
                         // println!{"database write"};
 
-                        client.query(&prep_info, &[&res.hash, &res.url, &res.creation_date, &res.title]).collect().poll();
-                        client.query(&prep_data, &[&res.hash, &res.url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]).collect().poll();
+                        let hash = res.hash.into_raw();
 
+                        // client.query(&prep_info, &[&res.hash, &res.url, &res.creation_date, &res.title]).collect().poll();
+                        // client.query(&prep_data, &[&res.hash, &res.url, &res.downloaded, &res.complete, &res.incomplete, &res.poll_time]).collect().poll();
                         Ok(())
                     })
                     .map(|x|println!{"finished insertion"});
