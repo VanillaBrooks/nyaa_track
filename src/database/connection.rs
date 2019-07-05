@@ -26,7 +26,7 @@ macro_rules! raw {
 
 // url format
 //postgresql://postgres:pass@localhost[:port][/database][?param1=val1[[&param2=val2]...]]
-const DB_ACCESS = "postgresql://postgres:pass@localhost/nyaa";
+const DB_ACCESS : &str= "postgresql://postgres:pass@localhost/nyaa";
 
 pub fn start_sync() -> Result<Connection, postgres::Error>{
     let url : &'static str = DB_ACCESS;
@@ -37,7 +37,7 @@ pub fn start_sync() -> Result<Connection, postgres::Error>{
 pub fn start_async(rx: mpsc::Receiver<GenericData>) {
     
     let database =
-        tokio_postgres::connect(DB_ACCESS), NoTls)
+        tokio_postgres::connect(DB_ACCESS, NoTls)
 
             .map(|(client, connection)| {
                 // The connection object performs the actual communication with the database,
