@@ -5,9 +5,12 @@ use super::super::requests::url_encoding;
 use std::io::prelude::*;
 use std::time::Duration;
 
-use super::{AnnounceResult, ScrapeResult, ScrapeData, GenericData};
+use super::{ScrapeData, GenericData};
 use futures::sync::mpsc;
+use futures::sync::oneshot;
 use futures::Sink;
+use futures::future;
+use future::lazy;
 
 use std::sync::Arc;
 
@@ -17,13 +20,14 @@ use hyper::rt::{Future, Stream};
 
 use tokio::timer::Timeout;
 
+
+
 #[derive(Debug, Clone)]
 pub struct AnnounceComponents {
 	pub url : Arc<String>,
 	pub info_hash: Arc<String>,
 	pub title: Arc<String>,
 	pub creation_date: Arc<i64>,
-	announce_url: hyper::Uri,
 	scrape_url: hyper::Uri,
 	client: Client<HttpsConnector<HttpConnector>>
 }
@@ -53,11 +57,6 @@ impl <'a>AnnounceComponents  {
 			let url_ = url_encoding::AnnounceUrl::new(hash.to_string(), hash.to_string());
 			let url_ = url_.serialize();
 
-			//push all the extensions onto the base url
-			let mut ann_url = url.clone();
-			ann_url.push_str("?");
-			ann_url.push_str(&url);
-			let ann_url = ann_url.parse()?;
 
 			// scrape url calc
 			let url_struct = url_encoding::ScrapeUrl::new(&hash);
@@ -67,7 +66,6 @@ impl <'a>AnnounceComponents  {
 								info_hash: Arc::new(hash), 
 								creation_date: Arc::new(date),
 								title: Arc::new(title),
-								announce_url: ann_url,
 								scrape_url: scrape_url,
 								client: utils::https_connection(4)})
 		}
@@ -81,15 +79,15 @@ impl <'a>AnnounceComponents  {
 		tx_announce: mpsc::Sender<AnnounceComponents>,
 		tx_database: mpsc::Sender<GenericData>
 		) -> () {
-		let client = Client::new();
-
 
 		let hash = self.info_hash.clone();
+		let hash_clone = self.info_hash.clone();
 		let url = self.url.clone();
 		let creation_date = self.creation_date.clone();
 		let title = self.title.clone();
 
-		let mut request = client
+
+		let request = self.client
 			// Fetch the url...
 			.get(self.scrape_url.clone())
 			// And then, if we get a response back...
@@ -99,6 +97,7 @@ impl <'a>AnnounceComponents  {
 			})
 			.from_err::<Error>()
 			.and_then(move |body| {
+				// dbg!{"getting data"};
 				let data = body.into_bytes().into_iter().collect::<Vec<_>>();
 
 				match ScrapeData::new_bytes(&data) {
@@ -108,18 +107,10 @@ impl <'a>AnnounceComponents  {
 						match scrape.files.values().into_iter().next(){
 							Some(data) => {
 
-								// dbg!{"scrape data acquired"};
-
-								if self.allow_future_scrapes(&data.complete){
-									tx_announce.send(self).wait();
-								}
-								else{
-									println!{"dropping item"}
-								}
 
 								let gen_data = 
 									GenericData::new(
-										hash,					//TODO: make these RC values
+										hash,
 										url,
 										creation_date,
 										title,
@@ -128,24 +119,46 @@ impl <'a>AnnounceComponents  {
 										data.incomplete);
 
 								Ok(gen_data)
-								
+
 							}
-							None => Err(Error::ShouldNeverHappen("the fields of scrapedata were not correctly filled".to_string()))
+							None => {
+								let e = Err(
+									Error::ShouldNeverHappen(
+										format!{"the fields of scrapedata for {:?} were not correctly filled", &hash_clone}
+									)
+								);
+								e
+							}
 						}
 
 					},
-					Err(_) => Err(Error::UrlError)
+					Err(_) => {
+						Err(Error::UrlError)
+					}
 				}
 			});
 
+		let self_clone = self.clone();
+		let tx_announce_clone = tx_announce.clone();
 
 		let fut = 
 		Timeout::new(request , Duration::from_secs(10))
 				.map(move |x| {
-					// println!{"success in scrape data"}
+					if self.allow_future_scrapes(&x.complete) {
+						tx_announce.send(self).wait();
+					}
+					else{
+						println!{"dropped item"}
+					}
 					tx_database.send(x).wait();
+
 					})
-				.map_err(|_| ());
+				.map_err(move |error| {
+
+					println!{"timeout error : {:?}", &error}
+					tx_announce_clone.send(self_clone).wait();
+
+				});
 
 		tokio::spawn(fut);
 

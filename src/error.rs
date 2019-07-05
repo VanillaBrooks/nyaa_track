@@ -96,12 +96,12 @@ impl From<http::uri::InvalidUri> for Error {
 	}
 }
 impl From<futures::sync::mpsc::TrySendError<Torrent>> for Error {
-	fn from(erorr: futures::sync::mpsc::TrySendError<Torrent>) -> Self {
+	fn from(error: futures::sync::mpsc::TrySendError<Torrent>) -> Self {
 		Error::Futures(FuturesErrors::TrySendError)
 	}
 }
 impl From<futures::sync::mpsc::TrySendError<AnnounceComponents>> for Error {
-	fn from(erorr: futures::sync::mpsc::TrySendError<AnnounceComponents>) -> Self {
+	fn from(error: futures::sync::mpsc::TrySendError<AnnounceComponents>) -> Self {
 		Error::Futures(FuturesErrors::TrySendError)
 	}
 }

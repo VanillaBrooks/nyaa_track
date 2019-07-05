@@ -1,23 +1,15 @@
 // use super::super::read::{announce_components, announce_result};
-use super::super::read::{AnnounceResult ,AnnounceComponents, GenericData};
-use super::super::database;
+use super::super::read::{AnnounceComponents, GenericData};
 
 use futures::sync::mpsc;
 use futures::{Future, Stream};
-use futures::sink::Sink;
 
-use tokio::timer::Timeout;
-
-use super::super::error::*;
-use super::super::utils;
 
 use std::sync::Arc;
 use parking_lot::RwLock;
 use hashbrown::HashSet;
 
-use std::thread;
 use std::time::Duration;
-use tokio::timer;
 
 use tokio::prelude::*;
 
@@ -30,8 +22,7 @@ pub fn start_scrape_cycle_task(
 	tx_generic: mpsc::Sender<GenericData>
 	) -> () {
 
-
-	// let inter_wrap = timer::Interval::new_interval(Duration::from_millis(100));
+	dbg!{"starting scrape task"};
 
 	let allow_new_scrapes = 
 		rx_to_scrape.throttle(Duration::from_millis(100)).for_each(move |ann|{
@@ -54,20 +45,26 @@ pub fn filter_new_announces(
 	previous_lock: Arc<RwLock<HashSet<String>>>
 	) -> () {
 	
+	dbg!{"starting filter task"};
+
 	let filter = 
-		rx_filter.for_each(move |new_announce_struct| {
-			println!{"new value sent to filter"}
+		rx_filter.for_each(move |ann| {
+			let hash_ptr = Arc::into_raw(ann.info_hash.clone());
+			let hash = unsafe{(*Arc::into_raw(ann.info_hash.clone())).clone()};
 
 			{
+				println!{"writing new value {:?}", &hash}
 				let mut previous = previous_lock.write();
-				previous.insert(new_announce_struct.info_hash.to_string());
+				previous.insert(hash);
 			}
 
-			new_announce_struct.get(tx_to_scrape.clone(), tx_generic.clone());
+			unsafe{ Arc::from_raw(hash_ptr) };
+
+			ann.get(tx_to_scrape.clone(), tx_generic.clone());
 
 			Ok(())
 		})
-		.map(|e| println!{"ERROR MAIN FILTERING {:?}",e});
+		.map_err(|e| println!{"ERROR MAIN FILTERING {:?}",e});
 
 	tokio::spawn(filter);
 }

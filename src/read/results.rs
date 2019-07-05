@@ -5,7 +5,6 @@ use serde_bytes::{self, ByteBuf};
 use super::super::error::*;
 use super::super::utils;
 
-use std::time;
 use std::collections::HashMap;
 
 use std::sync::Arc;

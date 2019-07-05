@@ -1,6 +1,5 @@
 // use reqwest;
 use hyper::rt::{Future, Stream};
-use hyper::client::{Client, HttpConnector};
 use futures::sync::mpsc;
 use tokio::timer::Timeout;
 
@@ -11,7 +10,7 @@ use std::fs;
 use std::io::prelude::*;
 use std::time::{self, Duration};
 use std::thread;
-use super::super::read::{Torrent, AnnounceComponents};
+use super::super::read::{AnnounceComponents};
 
 use hashbrown::HashSet;
 
@@ -29,7 +28,12 @@ macro_rules! parse {
 				// make sure we are not grabbing an old hash
 				{
 					let previous = $previous.read();
-					if previous.contains(info_hash) {continue}
+					if previous.contains(info_hash) {
+						continue
+					}
+					else {
+						println!{"info hash {:?} was not in previous", info_hash}
+					}
 				}
 				// if we are about to download the torrent sleep it for 1 second 
 				// prevents tracker from blocking us
@@ -41,14 +45,12 @@ macro_rules! parse {
 						let tx = $tx.clone();
 						//create a downloading future
 						let download_fut = Timeout::new(
-							$dl.download(
-								good_url, 
-								info_hash.to_string(), 
-								tx
-								),
+							$dl.download(good_url, tx),
 							Duration::from_secs(5))		// each future has 5 seconds to complete)
-							.map(|x| println!{"recieved good torrent data!"})
-							.map_err(|x| println!{"Error downloading torrent data"});
+
+						.map(|_| println!{"recieved good torrent data!"})
+						.map_err(|x| println!{"Error downloading torrent data"});
+						
 					tokio::spawn(download_fut);
 					}
 

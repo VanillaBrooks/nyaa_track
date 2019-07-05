@@ -18,6 +18,7 @@ macro_rules! raw {
     };
     (from; $($arc_name:ident),+) => {
         $(
+            #[allow(unused_variables)]
             let $arc_name = unsafe {Arc::from_raw($arc_name)};
         )+
     };
@@ -81,7 +82,7 @@ pub fn start_async(rx: mpsc::Receiver<GenericData>) {
 
                         Ok(())
                     })
-                    .map(|x|println!{"finished insertion"});
+                    .map(|_| println!{"finished insertion"});
                 tokio::spawn(data);
 
 
@@ -93,7 +94,7 @@ pub fn start_async(rx: mpsc::Receiver<GenericData>) {
         database
             // Now we can check that we got back the same string we sent over.
             .map(|res| {
-                println!{"the database has been dropped"}
+                println!{"the database has been dropped {:?}", res}
             })
             // And report any errors that happened.
             .map_err(|e| {

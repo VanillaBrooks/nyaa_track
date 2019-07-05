@@ -5,7 +5,6 @@ use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
 
 use futures::sync::mpsc;
-use futures::Async;
 use futures::sink::Sink;
 
 // mod error;
@@ -41,7 +40,7 @@ impl Downloader {
     pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
         Downloader{client: client }
     }
-    pub fn download(&self, url: &str, save_name: String, mut tx: mpsc::Sender<AnnounceComponents>) -> impl Future<Item=(), Error=Error> {
+    pub fn download(&self, url: &str, tx: mpsc::Sender<AnnounceComponents>) -> impl Future<Item=(), Error=Error> {
         let url = url.parse().expect("URI was not able to be parsed correctly in Downloader::download");
 
         let mut buffer: Vec<u8> = Vec::with_capacity(10_000);

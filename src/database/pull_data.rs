@@ -21,7 +21,7 @@ macro_rules! construct {
             let url = row.get(3);
             match $type::new(Some(url), hash, date, title) {
                 Ok(data) => res_vec.push(data),
-                Err(error) => () //TODO: log the error
+                Err(_) => () //TODO: log the error
             }
         }
         return Ok(res_vec)
