@@ -155,7 +155,7 @@ impl <'a>AnnounceComponents  {
 					})
 				.map_err(move |error| {
 
-					println!{"timeout error : {:?}", &error}
+					println!{"timeout error : {:?}", &error}						// uncomment this
 					tx_announce_clone.send(self_clone).wait();
 
 				});

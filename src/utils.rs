@@ -40,7 +40,7 @@ impl Downloader {
     pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
         Downloader{client: client }
     }
-    pub fn download(&self, url: &str, tx: mpsc::Sender<AnnounceComponents>) -> impl Future<Item=(), Error=Error> {
+    pub fn download(&self, url: &str, hash: String, tx: mpsc::Sender<AnnounceComponents>) -> impl Future<Item=(), Error=Error> {
         let url = url.parse().expect("URI was not able to be parsed correctly in Downloader::download");
 
         let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
@@ -57,7 +57,7 @@ impl Downloader {
 
                 match Torrent::new_bytes(&data) {
                     Ok(torrent) => {
-                        let ann = torrent_to_announce_components(torrent)?;
+                        let ann = torrent_to_announce_components(torrent, &hash)?;
                         tx.send(ann).wait();
                         Ok(())
                     },
@@ -307,23 +307,20 @@ pub fn check_hashes(dir_to_read: &str) -> () {//Vec<(String, Torrent)>{
 
 }
 
-pub fn torrent_to_announce_components(mut torrent: Torrent) -> Result<AnnounceComponents, Error>{
-    match torrent.info_hash(){
-        Ok(hash) => {
-            match torrent.info.name() {
-                Ok(name) => {
-                    let ann = 
-                    AnnounceComponents::new(
-                        torrent.announce,
-                        hash,
-                        torrent.creation_date,
-                        name
-                    )?;
-                    Ok(ann)
-                },
-                Err(_) => Err(Error::Torrent(TorrentErrors::MissingName))
-            }
+pub fn torrent_to_announce_components(mut torrent: Torrent, info_hash: &str) -> Result<AnnounceComponents, Error>{
+
+    match torrent.info.name() {
+        Ok(name) => {
+            let ann = 
+            AnnounceComponents::new(
+                torrent.announce,
+                info_hash.to_string(),
+                torrent.creation_date,
+                name
+            )?;
+            Ok(ann)
         },
-        Err(_) => Err(Error::Torrent(TorrentErrors::InfoHash))
+        Err(_) => Err(Error::Torrent(TorrentErrors::MissingName))
     }
+
 }

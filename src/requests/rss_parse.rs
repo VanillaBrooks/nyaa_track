@@ -45,7 +45,7 @@ macro_rules! parse {
 						let tx = $tx.clone();
 						//create a downloading future
 						let download_fut = Timeout::new(
-							$dl.download(good_url, tx),
+							$dl.download(good_url, info_hash.to_string(), tx),
 							Duration::from_secs(5))		// each future has 5 seconds to complete)
 
 						.map(|_| println!{"recieved good torrent data!"})

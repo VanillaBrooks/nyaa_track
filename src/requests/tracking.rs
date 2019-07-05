@@ -50,7 +50,7 @@ pub fn filter_new_announces(
 	let filter = 
 		rx_filter.for_each(move |ann| {
 			let hash_ptr = Arc::into_raw(ann.info_hash.clone());
-			let hash = unsafe{(*Arc::into_raw(ann.info_hash.clone())).clone()};
+			let hash = unsafe{(*hash_ptr).clone()};
 
 			{
 				println!{"writing new value {:?}", &hash}
