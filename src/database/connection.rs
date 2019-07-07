@@ -8,6 +8,10 @@ use tokio_postgres::NoTls;
 use super::super::read::*;
 
 use std::sync::Arc;
+use serde_derive::{Serialize, Deserialize};
+use serde_json;
+use std::io;
+use std::fs;
 
 macro_rules! raw {
     (into; $($arc_name:expr => $new_name:ident),+) => {
@@ -24,20 +28,47 @@ macro_rules! raw {
     };
 }
 
+
+#[derive(Serialize, Deserialize)]
+struct DatabaseConfig{
+	port: u32,
+	database_name: String,
+	username: String,
+	password: String
+}
+
+impl DatabaseConfig {
+	fn new() -> Self{
+		let path = r".\config.json".to_string();
+
+        let file = fs::File::open(path).expect("config.json DOES NOT EXIST");
+        let reader = io::BufReader::new(file);
+
+        serde_json::de::from_reader(reader).expect("port, database, username, password were not all filled.")
+		
+	}
+    fn connection_url(&self) -> String {
+        format!{"postgresql://{}:{}@localhost:{}/{}",self.username, self.password, self.port, self.database_name}
+    }
+}
+
+
 // url format
 //postgresql://postgres:pass@localhost[:port][/database][?param1=val1[[&param2=val2]...]]
 const DB_ACCESS : &str= "postgresql://postgres:pass@localhost/nyaa";
 
 pub fn start_sync() -> Result<Connection, postgres::Error>{
     let url : &'static str = DB_ACCESS;
+    let url : String = DatabaseConfig::new().connection_url();
     Connection::connect(url, TlsMode::None)
 }
 
 
 pub fn start_async(rx: mpsc::Receiver<GenericData>) {
+    let db_url = DatabaseConfig::new().connection_url();
     
     let database =
-        tokio_postgres::connect(DB_ACCESS, NoTls)
+        tokio_postgres::connect(&db_url, NoTls)
 
             .map(|(client, connection)| {
                 // The connection object performs the actual communication with the database,

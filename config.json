@@ -1,0 +1,6 @@
+{
+    "username" : "postgres",
+    "password" : "pass",
+    "database_name" : "nyaa",
+    "port": 5432
+}
