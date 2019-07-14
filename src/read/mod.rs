@@ -5,6 +5,7 @@ pub use torrent::Info;
 pub mod results;
 pub use results::AnnounceResult;
 pub use results::ScrapeResult;
+pub use results::AnnounceData;
 pub use results::ScrapeData;
 pub use results::GenericData;
 

@@ -113,7 +113,7 @@ pub fn get_xml<'a>(
 			let channel = rss::Channel::read_from(std::io::BufReader::new(file)).expect("error when reading rss");
 			let items = channel.into_items().to_vec();
 
-			std::fs::remove_file(path);
+			// std::fs::remove_file(path);
 
 			let dl = utils::Downloader::new();
 

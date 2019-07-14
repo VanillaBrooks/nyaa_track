@@ -10,7 +10,10 @@ use futures::sink::Sink;
 // mod error;
 use super::error::*;
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, Duration,SystemTime, UNIX_EPOCH};
+
+use tokio::timer::Delay;
+
 
 use hashbrown::HashSet;
 
@@ -323,4 +326,12 @@ pub fn torrent_to_announce_components(mut torrent: Torrent, info_hash: &str) -> 
         Err(_) => Err(Error::Torrent(TorrentErrors::MissingName))
     }
 
+}
+
+
+pub fn create_delay(seconds: i64) -> Delay {
+    let now = Instant::now();
+    let fut_time = now.checked_add(Duration::new(seconds as u64, 0)).expect("DELAY ERROR: not in the future");
+
+    Delay::new(fut_time)
 }

@@ -108,16 +108,15 @@ impl AnnounceUrl {
     pub fn new(info_hash: String, peer_id: String) -> AnnounceUrl {
         let url_hash     = hex_to_char(&info_hash);
         let peer_id_hash = hex_to_char(&peer_id);
-        // let url_hash = info_hash;
-        // let peer_id_hash = peer_id;
         AnnounceUrl{info_hash: url_hash, peer_id: peer_id_hash, port: 9932, uploaded:0, downloaded:0,numwant:20,compact: 1}
     }
 
     // build the url format that is required
     // ....../announce?info_hash=......&peer_id=......& etc
-    pub fn serialize(&self) -> String {
+    pub fn serialize(&self, base_announce: &String) -> String {
 
         let mut s = String::with_capacity(50);
+        s.push_str(&base_announce);
         Self::_seialze_helper(&mut s, "info_hash", &self.info_hash);
         Self::_seialze_helper(&mut s, "peer_id", &self.peer_id);
         Self::_seialze_helper(&mut s, "port", &self.port.to_string());
@@ -125,7 +124,6 @@ impl AnnounceUrl {
         Self::_seialze_helper(&mut s, "downloaded", &self.downloaded.to_string());
         Self::_seialze_helper(&mut s, "numwant", &self.numwant.to_string());
         Self::_seialze_helper(&mut s, "compact", &self.compact.to_string());
-
 
         return s;
     }

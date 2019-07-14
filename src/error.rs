@@ -108,7 +108,9 @@ impl From<futures::sync::mpsc::TrySendError<AnnounceComponents>> for Error {
 #[derive(Debug)]
 pub enum HTTPErrors {
 	Hyper(hyper::Error),
-	Uri(http::uri::InvalidUri)
+	Uri(http::uri::InvalidUri),
+	ParseError,
+	InvalidData
 }
 #[derive(Debug)]
 pub enum AnnounceErrors{
