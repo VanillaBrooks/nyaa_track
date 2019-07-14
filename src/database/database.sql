@@ -45,4 +45,4 @@ as
 	select info_hash, creation_date, title, announce_url
 	from info
 	WHERE info.id in (select *
-	from ids_to_track);
+	from ids_to_track) OR (((select extract(epoch from now()) ) - info.creation_date)/86400) <7;

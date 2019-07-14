@@ -44,6 +44,8 @@ pub struct AnnounceComponents {
 	struct_initialization_time: i64
 }
 
+const SCRAPE_URL: &str = "http://nyaa.tracker.wf:7777/announce";
+
 // TODO: fix unwrap
 impl <'a>AnnounceComponents  {
 	pub fn new (
@@ -70,12 +72,12 @@ impl <'a>AnnounceComponents  {
 
 			// announce_url calculation
 			let url_ = url_encoding::AnnounceUrl::new(hash.to_string(), hash.to_string());
-			let announce_url = url_.serialize(&url).parse()?;
+			let announce_url = url_.serialize(SCRAPE_URL).parse()?;
 
 
 			// scrape url calc
 			let url_struct = url_encoding::ScrapeUrl::new(&hash);
-			let scrape_url = url_struct.announce_to_scrape(&url)?.parse()?;
+			let scrape_url = url_struct.announce_to_scrape(SCRAPE_URL)?.parse()?;
 			
 			Ok(AnnounceComponents {
 					url: Arc::new(url),

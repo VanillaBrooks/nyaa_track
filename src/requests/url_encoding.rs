@@ -113,7 +113,7 @@ impl AnnounceUrl {
 
     // build the url format that is required
     // ....../announce?info_hash=......&peer_id=......& etc
-    pub fn serialize(&self, base_announce: &String) -> String {
+    pub fn serialize(&self, base_announce: &str) -> String {
 
         let mut s = String::with_capacity(50);
         s.push_str(&base_announce);
@@ -148,7 +148,7 @@ impl ScrapeUrl {
         let url_hash = hex_to_char(hash);
         ScrapeUrl{hash: url_hash}
     }
-    pub fn announce_to_scrape(&self, ann_url: &String) -> Result<String, Error> {
+    pub fn announce_to_scrape(&self, ann_url: &str) -> Result<String, Error> {
         let mut base = String::with_capacity(40 + 40*1);
         let no_announce_url = utils::content_before_last_slash(&ann_url)?;              //TODO: LOG the announce url we come up with here (could be problematic)
         base.push_str(&no_announce_url);
