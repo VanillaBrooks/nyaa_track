@@ -208,7 +208,7 @@ impl <'a>AnnounceComponents  {
 	*/
 	fn run_scrape(mut self, tx_announce:mpsc::Sender<AnnounceComponents>, tx_database: mpsc::Sender<GenericData>) {
 
-		println!{"STARTING SCRAPE"}
+		// println!{"STARTING SCRAPE"}
 		let mut self_clone = self.clone();
 		let tx_announce_clone = tx_announce.clone();
 

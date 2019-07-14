@@ -7,7 +7,7 @@ macro_rules! construct {
     ($type:ident) => {
         let conn = connection::start_sync()?;
         // let pull = conn.prepare("SELECT info_hash, creation_date, title, announce_url FROM info WHERE announce_url='http://nyaa.tracker.wf:7777/announce'")?;
-        let pull = conn.prepare("with id_poll_time as (select stats_id, max(poll_time) as time from stats where seeding > 99 group by stats_id) select info_hash, creation_date, title, announce_url from info where id in (select stats_id from id_poll_time) OR ( ((select extract(epoch from now()) - creation_date) / 86400) < 7)")?;
+        let pull = conn.prepare("SELECT info_hash, creation_date, title, announce_url FROM data_to_track")?;
 
         let count = conn.query("SELECT COUNT(*) FROM info", &[])?;
         let len : i64= count.iter().nth(0).unwrap().get(0);

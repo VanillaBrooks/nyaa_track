@@ -16,3 +16,33 @@ CREATE TABLE stats
 	seeding BIGINT NOT NULl,
 	incomplete BIGINT NOT NULL
 );
+
+
+
+-- FETCH ids from stats where the announce either is within the last 7 days 
+--or has more than 100 seeds at the last scrape
+create view ids_to_track
+as
+
+	with
+		max_polls
+		as
+		(
+			select max(poll_time) as mpt, stats_id as s_id
+			from stats
+			group by stats_id
+		)
+	select stats_id
+	from stats
+		inner join max_polls on stats.stats_id = max_polls.s_id AND max_polls.mpt = stats.poll_time
+	where stats.seeding > 100
+	order by stats.stats_id;
+
+
+-- pull relevant data to construct an announce component from the view ids_to_track
+create view data_to_track
+as
+	select info_hash, creation_date, title, announce_url
+	from info
+	WHERE info.id in (select *
+	from ids_to_track);
