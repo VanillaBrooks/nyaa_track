@@ -117,6 +117,8 @@ impl AnnounceUrl {
 
         let mut s = String::with_capacity(50);
         s.push_str(&base_announce);
+        s.push_str("?");
+
         Self::_seialze_helper(&mut s, "info_hash", &self.info_hash);
         Self::_seialze_helper(&mut s, "peer_id", &self.peer_id);
         Self::_seialze_helper(&mut s, "port", &self.port.to_string());
@@ -125,6 +127,7 @@ impl AnnounceUrl {
         Self::_seialze_helper(&mut s, "numwant", &self.numwant.to_string());
         Self::_seialze_helper(&mut s, "compact", &self.compact.to_string());
 
+        println!{"{}", s}
         return s;
     }
 
