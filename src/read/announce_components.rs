@@ -1,7 +1,10 @@
-use super::super::error::*;
-use super::super::error::HTTPErrors;
-use super::super::utils;
-use super::super::requests::url_encoding;
+
+use super::super::{
+	error::*,
+	utils,
+	requests::url_encoding,
+	database::connection
+};
 
 use std::io::prelude::*;
 use std::time::Duration;
@@ -19,7 +22,7 @@ use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
 use hyper::rt::{Future, Stream};
 
-use tokio::timer::Timeout;
+use tokio::timer::{Timeout, Delay};
 
 enum RequestType{
 	Announce((GenericData, i64)),
@@ -33,7 +36,7 @@ pub struct AnnounceComponents {
 	pub url : Arc<String>,
 	pub info_hash: Arc<String>,
 	pub title: Arc<String>,
-	pub creation_date: Arc<i64>,
+	pub creation_date: i64,
 	scrape_url: hyper::Uri,
 	announce_url: hyper::Uri,
 	client: Client<HttpsConnector<HttpConnector>>,
@@ -82,7 +85,7 @@ impl <'a>AnnounceComponents  {
 			Ok(AnnounceComponents {
 					url: Arc::new(url),
 					info_hash: Arc::new(hash), 
-					creation_date: Arc::new(date),
+					creation_date: date,
 					title: Arc::new(title),
 					scrape_url: scrape_url,
 					announce_url: announce_url,
@@ -100,13 +103,11 @@ impl <'a>AnnounceComponents  {
 	}
 
 	pub fn get(
-		mut self,
+		self,
 		tx_announce: mpsc::Sender<AnnounceComponents>,
-		tx_database: mpsc::Sender<GenericData>
+		tx_database: mpsc::Sender<connection::DatabaseUpsert>
 		) -> () {
-
-		let mut self_clone = self.clone();
-		let tx_announce_clone = tx_announce.clone();
+		//
 
 		let next_epoch_announce = self.allow_announce();
 
@@ -123,14 +124,16 @@ impl <'a>AnnounceComponents  {
 		else if false {
 
 		}
-		// run a delayed announce
+		// run a (potentially) delayed scrape
 		else {
-			self.run_scrape(tx_announce, tx_database)
-		}
-		// else {
-		// 	self.run_
-		// }
+			
+			let delay = self.time_existance().generate_delay(7);
 
+			let del_fut = 
+				delay.map(|_| self.run_scrape(tx_announce, tx_database) )
+				.map_err(|_| println!{"\n\n\n\n erorr spawning scrape future delay this should not happen \n\n\n\n"});
+			tokio::spawn(del_fut);
+		}
 
 	}
 
@@ -138,9 +141,10 @@ impl <'a>AnnounceComponents  {
 	/* 
 		STARTER METHOD FOR announces
 	*/
-	fn run_announce(mut self, delay: i64, tx_announce:mpsc::Sender<AnnounceComponents>, tx_database: mpsc::Sender<GenericData>) {
+	fn run_announce(mut self, delay: i64, tx_announce:mpsc::Sender<AnnounceComponents>, tx_database: mpsc::Sender<connection::DatabaseUpsert>) {
 		let mut self_clone = self.clone();
 		let tx_announce_clone = tx_announce.clone();
+		let tx_database_clone = tx_database.clone();
 
 		println!{"STARTING ANNOUNCE"}
 
@@ -153,16 +157,17 @@ impl <'a>AnnounceComponents  {
 
 					if self.allow_future_scrapes(&data.complete) {
 						tx_announce.send(self).wait();
-					}
-					else{
+					} else{
 						println!{"dropped item"}
 					}
 
-					tx_database.send(data).wait();
+					
+					let db_wrap = connection::DatabaseUpsert::Data(data);
+					tx_database.send(db_wrap).wait();
 
 					})
 				.map_err(|error| {
-					println!{"general announce errors: {:?}", error}
+					// println!{"general announce errors: {:?}\n\tannounce url: {}\n\tscrape_url: {}", error, self_clone.announce_url, self_clone.scrape_url}
 
 					match error.into_inner(){
 						Some(error) => 
@@ -170,11 +175,15 @@ impl <'a>AnnounceComponents  {
 								Error::HTTP(val) => 
 									match val {
 										HTTPErrors::InvalidData => {		// this is likely caused by the announce being triggered to o quickly
-											// self_clone.incomplete_data += 1;
-											self_clone.next_announce = utils::get_unix_time() + (30 * 60);
+											println!{"announce invalid data being logged to database"}
 
-											println!{"incomplete data <announce>, total {}", &self_clone.incomplete_data}
-											}
+											let now = utils::get_unix_time();
+											self_clone.incomplete_data += 1;
+											self_clone.next_announce = now + (30 * 60);
+											let db_wrap = connection::ErrorType::new(connection::ErrorType::InvalidAnnounce, self_clone.info_hash.clone(), now);
+										
+											tx_database_clone.send(db_wrap).wait();
+										}
 										HTTPErrors::ParseError =>{
 											self_clone.announce_error_count += 1;
 											println!{"announce parse error : {:?}\nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}\ttotal errors {}", &val, self_clone.scrape_url, self_clone.info_hash, self_clone.title, self_clone.announce_error_count}
@@ -208,11 +217,12 @@ impl <'a>AnnounceComponents  {
 	/* 
 		STARTER METHOD FOR SCRAPES
 	*/
-	fn run_scrape(mut self, tx_announce:mpsc::Sender<AnnounceComponents>, tx_database: mpsc::Sender<GenericData>) {
+	fn run_scrape(mut self, tx_announce:mpsc::Sender<AnnounceComponents>, tx_database: mpsc::Sender<connection::DatabaseUpsert>) {
 
 		// println!{"STARTING SCRAPE"}
 		let mut self_clone = self.clone();
 		let tx_announce_clone = tx_announce.clone();
+		let tx_database_clone = tx_database.clone();
 
 		let fut = 
 		Timeout::new(self.scrape() , Duration::from_secs(10))
@@ -223,7 +233,8 @@ impl <'a>AnnounceComponents  {
 					else{
 						println!{"dropped item"}
 					}
-					tx_database.send(x).wait();
+					let db_wrap = connection::DatabaseUpsert::Data(x);
+					tx_database.send(db_wrap).wait();
 
 					})
 				.map_err(|error| {
@@ -234,9 +245,15 @@ impl <'a>AnnounceComponents  {
 								Error::HTTP(val) => 
 									match val {
 										HTTPErrors::InvalidData => {
+											println!{"scrape invalid data being logged to database"}
+
 											self_clone.incomplete_data += 1;
-											println!{"invalid scrape data. incomplete data (both) total: {}", &self_clone.incomplete_data}
-											}
+
+											let now = utils::get_unix_time();
+											let db_wrap = connection::ErrorType::new(connection::ErrorType::InvalidAnnounce, self_clone.info_hash.clone(), now);
+											tx_database_clone.send(db_wrap).wait();
+
+										}
 										HTTPErrors::ParseError =>{
 											self_clone.scrape_error_count += 1;
 											println!{"scrape parse error : {:?}\nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}\ttotal errors {}", &val, self_clone.scrape_url, self_clone.info_hash, self_clone.title, self_clone.scrape_error_count}
@@ -379,12 +396,8 @@ impl <'a>AnnounceComponents  {
 	}
 
 	fn allow_future_scrapes(&self, seeders: &i64) -> bool {
-		let creation_data_ptr = Arc::into_raw(self.creation_date.clone());
-		let creation_date = unsafe{*creation_data_ptr};
-		
-		unsafe {Arc::from_raw(creation_data_ptr) };
 
-		let days_alive = (utils::get_unix_time() - creation_date) / 86400;
+		let days_alive = (utils::get_unix_time() - self.creation_date) / 86400;
 
 		// older than 7 days, less than 100 active seeders we terminate tracking
 		if days_alive > 7 && *seeders < 100 {
@@ -415,5 +428,52 @@ impl <'a>AnnounceComponents  {
 		if (self.scrape_error_count / hours) >= 5 {true}
 		else {false}
 	}
+
+	// Time since the creation of the torrent file *NOT* when the struct was created
+	fn time_existance(&self) -> ElapsedTime {
+		let now = utils::get_unix_time();
+
+		let diff = now - self.creation_date;
+
+
+		ElapsedTime::new(diff)
+	}
 	
+}
+
+#[derive(Debug, Clone)]
+pub struct ElapsedTime {
+	pub days: i64,
+	pub hours: i64,
+	pub seconds: i64
+}
+impl ElapsedTime{
+	pub fn new(mut seconds: i64) -> Self{
+		let mut  hours = seconds / 3600;
+		let mut  days = hours / 24;
+
+		seconds -= hours *3600;
+
+		hours -= days*24;
+
+		Self{
+			days: days,
+			hours: hours,
+			seconds: seconds
+		}
+		
+	}
+
+	/// Returns number of seconds to delay the scrape
+	pub fn generate_delay(&self, min_days: i64) -> Delay {
+		let delay = 
+			if self.days < 7{
+				0
+			} else {
+				// delay by "days existed" as minutes
+				self.days * 60
+			};
+		utils::create_delay(delay)
+			
+	} 
 }

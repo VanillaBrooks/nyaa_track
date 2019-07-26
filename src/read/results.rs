@@ -100,7 +100,7 @@ impl ScrapeData {
 pub struct GenericData  {
     pub hash: Arc<String>,
     pub url: Arc<String>,
-    pub creation_date: Arc<i64>,
+    pub creation_date: i64,
     pub title: Arc<String>,
     pub downloaded: i64,
     pub complete: i64,
@@ -114,7 +114,7 @@ impl GenericData {
     pub fn new(
         hash: Arc<String>, 
         url: Arc<String>, 
-        date: Arc<i64>, 
+        date: i64, 
         title: Arc<String>, 
         downloaded: i64, 
         complete: i64, 

@@ -10,6 +10,7 @@ pub mod requests;
 pub mod error;
 pub mod database;
 
+use database::connection;
 
 use error::*;
 
@@ -74,18 +75,18 @@ fn load_problem_hash(hash: &str)  {
 /*
 	Start async database
 */
-fn start_database_task(rx_generic: mpsc::Receiver<GenericData>) {
+fn start_database_task(rx_generic: mpsc::Receiver<connection::DatabaseUpsert>) {
 			database::connection::start_async(rx_generic);
 }
 
-
+use read::announce_components;
 
 fn main() {
+
 	let size = 1_024*1_024*100;														// 100 MB cache
-	let (tx_generic, rx_generic) = mpsc::channel::<read::GenericData>(size);				// to database		
+	let (tx_generic, rx_generic) = mpsc::channel::<connection::DatabaseUpsert>(size);				// to database		
 	let (tx_to_scrape, rx_to_scrape) = mpsc::channel::<read::AnnounceComponents>(size); 	// to the scrape / announce cycle
 	let (tx_filter, rx_filter) = mpsc::channel::<read::AnnounceComponents>(size);			// to the step between rss and announce
-
 
 	let mut previous_hashes = HashSet::<String>::new();
 	database::pull_data::database_announce_components()
@@ -98,7 +99,6 @@ fn main() {
 			});
 
 	let previous = Arc::new(RwLock::new(previous_hashes));
-	// let previous = Arc::new(RwLock::new(HashSet::new()));
 
 	dbg!{"finished adding to queue"};
 

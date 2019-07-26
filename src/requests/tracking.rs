@@ -1,5 +1,6 @@
 // use super::super::read::{announce_components, announce_result};
 use super::super::read::{AnnounceComponents, GenericData};
+use super::super::database::connection;
 
 use futures::sync::mpsc;
 use futures::{Future, Stream};
@@ -19,7 +20,7 @@ use tokio::prelude::*;
 pub fn start_scrape_cycle_task(
 	rx_to_scrape: mpsc::Receiver<AnnounceComponents>,
 	tx_to_scrape: mpsc::Sender<AnnounceComponents>,
-	tx_generic: mpsc::Sender<GenericData>
+	tx_generic: mpsc::Sender<connection::DatabaseUpsert>
 	) -> () {
 
 	dbg!{"starting scrape task"};
@@ -41,7 +42,7 @@ pub fn start_scrape_cycle_task(
 pub fn filter_new_announces(
 	rx_filter: mpsc::Receiver<AnnounceComponents>,
 	tx_to_scrape: mpsc::Sender<AnnounceComponents>,
-	tx_generic: mpsc::Sender<GenericData>,
+	tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
 	previous_lock: Arc<RwLock<HashSet<String>>>
 	) -> () {
 	

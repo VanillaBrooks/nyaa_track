@@ -61,18 +61,18 @@ def pull_stats(info_hash):
 	numwant = 20
 
 
-	# url = f'https://nyaa.tracker.wf:7777/scrape?info_hash={url_hash}&peer_id={url_hash}&port={port}&uploaded=0&downloaded=0&numwant={numwant}&compact=1'
-	url = f'http://nyaa.tracker.wf:7777/scrape?info_hash={url_hash}'
+	url = f'https://nyaa.tracker.wf:7777/announce?info_hash={url_hash}&peer_id={url_hash}&port={port}&uploaded=0&downloaded=0&numwant={numwant}&compact=1'
+	#url = f'http://nyaa.tracker.wf:7777/scrape?info_hash={url_hash}'
 	print(f'url is: {url}')
 
-	req = urllib.request.urlopen(url).read()
-	pprint(req)
-	pprint(bencoder.decode(req))
+	#req = urllib.request.urlopen(url).read()
+	#pprint(req)
+	#pprint(bencoder.decode(req))
 #%de%f20%00%91T%13%4e%bc%bf%91%d3xV%13d%00v%a5%05
 
 
 if __name__ == "__main__":
-	url = "7c5cf79f686bae339d0ea9d077ee6ec74aa82f1b"
+	url = "578d141ae78bfb5629fa1be94b00a8a6d0f2553a"
 	print(url)
 	print(url_encoding(url))
 
