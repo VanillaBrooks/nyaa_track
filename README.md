@@ -64,22 +64,22 @@ where ```database.sql``` is located in ```src/database/database.sql```
 
 with an already created database named `database_name` you can run the command:
 
-`psql database_name < infile`
+`psql -U username -d database_name < infile`
 
 Reading a compressed database file can be done with:
 
-`gunzip -c filenam.gz | psql database_name`
+`gunzip -c filenam.gz | psql -U username -d database_name`
 
 
 ### dumping database files
 
 You can dump data from `database_name` with:
 
-`pg_dump database_name > outfile`
+`pg_dump -U username -d database_name > outfile`
 
 or with compression:
 
-`pg_dump database_name | gzip > filename.gz`
+`pg_dump -U username -d database_name | gzip > filename.gz`
 
 
 ## Storage
