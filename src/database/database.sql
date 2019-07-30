@@ -112,3 +112,16 @@ select info.info_hash, error.info_id, count(error.info_id), (select to_timestamp
 from error
 inner join info on info.id = error.info_id
 group by error.info_id, info.info_hash
+
+
+
+-- get the total number of requests sent over the last 100 seconds
+create view benchmark as 
+	with unix_time as (select extract(epoch from now()))
+	select count(stats_id) from stats where poll_time >= ((select * from unxi_time) - 100) and poll_time <= (select * from unix_time);
+
+
+-- fetch the distinc ids that have been updated in the last hour
+create view current_track as 
+	with unix_time as (select extract(epoch from now()))
+	select count(DISTINCT stats_id) from stats where poll_time >= ((select *  from unix_time) - 3600) and poll_time <= (select * from unix_time) 
