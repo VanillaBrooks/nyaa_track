@@ -6,15 +6,12 @@ use super::super::{
 	database::connection
 };
 
-use std::io::prelude::*;
 use std::time::Duration;
 
 use super::{ScrapeData, AnnounceData, GenericData};
 use futures::sync::mpsc;
-use futures::sync::oneshot;
 use futures::Sink;
 use futures::future;
-use future::lazy;
 
 use std::sync::Arc;
 
@@ -111,18 +108,12 @@ impl <'a>AnnounceComponents  {
 
 		let next_epoch_announce = self.allow_announce();
 
-		// an announce is ready to fire off
-		if next_epoch_announce < 0{
-			self.run_announce(0, tx_announce, tx_database)
+		if self.scrape_errors_too_high() && self.announce_errors_too_high(){
+			() // kill the struct
 		}
 		// too many scrape erros for how long the annoucer has existed
 		else if self.scrape_errors_too_high() {
 			self.run_announce(next_epoch_announce, tx_announce, tx_database)
-		}
-		// if there are too many errors _everywhere_ we kill the struct
-		// and send off an error updater to where its supposed to go
-		else if false {
-
 		}
 		// run a (potentially) delayed scrape
 		else {
@@ -426,6 +417,17 @@ impl <'a>AnnounceComponents  {
 
 
 		if (self.scrape_error_count / hours) >= 5 {true}
+		else {false}
+	}
+
+	fn announce_errors_too_high(&self) -> bool {
+		let now = utils::get_unix_time();
+		let hours = (now - self.struct_initialization_time) / 3600;
+		let hours = 
+			if hours == 0 {1}
+			else {hours};
+
+		if (self.announce_error_count / hours) > 2 && self.announce_error_count > 10 {true}
 		else {false}
 	}
 
