@@ -69,7 +69,7 @@ as
 -- get the total number of requests sent over the last 100 seconds
 create view benchmark as 
 	with unix_time as (select extract(epoch from now()))
-	select count(stats_id) from stats where poll_time >= ((select * from unxi_time) - 100) and poll_time <= (select * from unix_time);
+	select count(stats_id) from stats where poll_time >= ((select * from unix_time) - 100) and poll_time <= (select * from unix_time);
 
 
 -- fetch the distinc ids that have been updated in the last hour

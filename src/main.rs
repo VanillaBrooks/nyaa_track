@@ -29,10 +29,10 @@ use hashbrown::HashSet;
 use read::GenericData;
 
 
-#[allow(dead_code)]const TORRENTS_DIR : &str= r"C:\Users\Brooks\github\nyaa_tracker\torrents\";
+// #[allow(dead_code)]const TORRENTS_DIR : &str= r"C:\Users\Brooks\github\nyaa_tracker\torrents\";
 #[allow(dead_code)]const SI_RSS: &str = r"https://nyaa.si/?page=rss";
 #[allow(dead_code)]const PANTSU_RSS : &str = r"https://nyaa.pantsu.cat/feed?";
-#[allow(dead_code)]const TEST_FILE :&str=  r"C:\Users\Brooks\Downloads\test.txt";
+// #[allow(dead_code)]const TEST_FILE :&str=  r"C:\Users\Brooks\Downloads\test.txt";
 
 /// Macro instead of function since this will reduce the ammount of 
 /// clones needed (ownership is retained since it is inlined)
@@ -56,21 +56,21 @@ macro_rules! rss_check {
 }
 
 
-#[allow(dead_code)]
-fn load_problem_hash(hash: &str)  {
-	let mut file = TORRENTS_DIR.clone().to_string();
-	file.push_str(&hash);
-	file.push_str(".torrent");
-	let torrent = Torrent::new_file(&file);
+// #[allow(dead_code)]
+// fn load_problem_hash(hash: &str)  {
+// 	let mut file = TORRENTS_DIR.clone().to_string();
+// 	file.push_str(&hash);
+// 	file.push_str(".torrent");
+// 	let torrent = Torrent::new_file(&file);
 
-	match torrent {
-		Ok(x)=> {
-			// let i = x.info;
-			dbg!{x};
-		},
-		Err(x)=> println!{"error loading hash {} : {:?}", hash, x}
-	}
-}
+// 	match torrent {
+// 		Ok(x)=> {
+// 			// let i = x.info;
+// 			dbg!{x};
+// 		},
+// 		Err(x)=> println!{"error loading hash {} : {:?}", hash, x}
+// 	}
+// }
 
 /*
 	Start async database

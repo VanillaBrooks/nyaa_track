@@ -26,7 +26,7 @@ pub fn start_scrape_cycle_task(
 	dbg!{"starting scrape task"};
 
 	let allow_new_scrapes = 
-		rx_to_scrape.throttle(Duration::from_millis(95)).for_each(move |ann|{
+		rx_to_scrape.throttle(Duration::from_millis(200)).for_each(move |ann|{
 
 			ann.get(tx_to_scrape.clone(), tx_generic.clone());
 

@@ -118,7 +118,7 @@ impl <'a>AnnounceComponents  {
 		// run a (potentially) delayed scrape
 		else {
 			
-			let delay = self.time_existance().generate_delay(7);
+			let delay = self.time_existance().generate_delay(1);
 
 			let del_fut = 
 				delay.map(|_| self.run_scrape(tx_announce, tx_database) )
@@ -230,6 +230,7 @@ impl <'a>AnnounceComponents  {
 					})
 				.map_err(|error| {
 
+					// println!{"general scrape errors: {:?}\nnnounce url: {}\n\tscrape_url: {}", error, self_clone.announce_url, self_clone.scrape_url}
 					match error.into_inner(){
 						Some(error) => 
 							match error {
@@ -468,12 +469,14 @@ impl ElapsedTime{
 
 	/// Returns number of seconds to delay the scrape
 	pub fn generate_delay(&self, min_days: i64) -> Delay {
+		let days_delay = 3;
+
 		let delay = 
-			if self.days < 7{
+			if self.days < min_days {
 				0
 			} else {
-				// delay by "days existed" as minutes
-				self.days * 60
+				// delay by "days existed" as minutes TIMES delay constant
+				self.days * 60 * days_delay
 			};
 		utils::create_delay(delay)
 			
