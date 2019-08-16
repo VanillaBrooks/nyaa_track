@@ -97,6 +97,7 @@ pub fn start_async(rx: mpsc::Receiver<DatabaseUpsert>) {
 
                         match upsert_enum {
                             DatabaseUpsert::Data(res) => {
+                                dbg!{"database write!"};
                                 // get pointer references to interior of Arc
                                 raw!{into;
                                     res.hash => hash,

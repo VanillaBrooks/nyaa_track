@@ -47,7 +47,7 @@ group by error.info_id, info.info_hash;
 select info.title, (select to_timestamp(max(stats.poll_time))) from info
 inner join stats on stats.stats_id = info.id
 
-where info.title like '%Horrible%' and info.title like '%Kimetsu%'
+where info.title like '%Horrible%' and info.title like '%Kimetsu%' and info.title like '%720p%'
 group by info.id;
 
 
