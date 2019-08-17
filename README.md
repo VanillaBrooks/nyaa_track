@@ -22,13 +22,9 @@ You can download a binary and config file from the [releases section](https://gi
 ### Building 
 You will need a copy of the rust compiler which can be downloaded [here](https://www.rust-lang.org/learn/get-started).
 
-clone the repo:
+clone and open the repo:
 
-```https://github.com/VanillaBrooks/nyaa_track```
-
-open directory
-
-``` cd nyaa_track```
+```git clone https://github.com/VanillaBrooks/nyaa_track && cd nyaa_track```
 
 build & run with compiler optimizations
 
