@@ -53,8 +53,6 @@ impl Downloader {
             .parse()
             .expect("URI was not able to be parsed correctly in Downloader::download");
 
-        let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
-
         let res = self.client.get(url).await?.into_body();
         let res_bytes = hyper::body::to_bytes(res)
             .await?
@@ -64,13 +62,12 @@ impl Downloader {
         match Torrent::new_bytes(&res_bytes) {
             Ok(torrent) => {
                 let ann = torrent_to_announce_components(torrent, &hash)?;
-                tx.send(ann).await;
+                tx.send(ann).await?;
                 Ok(())
             }
             Err(e) => Err(e),
-        };
+        }
 
-        unimplemented! {}
     }
 }
 

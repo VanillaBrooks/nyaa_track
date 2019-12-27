@@ -104,6 +104,12 @@ impl From<futures::channel::mpsc::TrySendError<AnnounceComponents>> for Error {
         Error::Futures(FuturesErrors::TrySendError)
     }
 }
+impl From<futures::channel::mpsc::SendError> for Error {
+    fn from(error: futures::channel::mpsc::SendError) -> Self {
+        Error::Futures(FuturesErrors::SendError)
+    }
+}
+
 #[derive(Debug)]
 pub enum HTTPErrors {
     Hyper(hyper::Error),
@@ -136,4 +142,5 @@ pub enum TorrentErrors {
 #[derive(Debug)]
 pub enum FuturesErrors {
     TrySendError,
+    SendError
 }

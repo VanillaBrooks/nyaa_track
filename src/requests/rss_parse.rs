@@ -76,7 +76,7 @@ macro_rules! parse {
 pub async fn get_xml(
     url: &str,
     previous: Arc<RwLock<HashSet<String>>>,
-    tx_to_filter: mpsc::Sender<AnnounceComponents>, // ) -> Result<Data, Error> {
+    tx_to_filter: mpsc::Sender<AnnounceComponents>,
 ) -> Result<(), Error> {
     // decide what hash-parsing function we will use for the given url
     let parse_funct = if url.contains(".si") {
@@ -125,7 +125,7 @@ pub async fn get_xml(
         parse! {parse_funct, item, previous, dl, tx_to_filter};
     }
 
-    unimplemented! {}
+    Ok(())
 }
 
 // timer for rss updates
