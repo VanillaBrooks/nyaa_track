@@ -30,8 +30,8 @@ impl<'a> AnnounceResult<'a> {
         let s = AnnounceResult {
             info_hash: hash,
             announce_url: url,
-            data: data,
-            title: title,
+            data,
+            title,
             creation_date: date,
             poll_time: utils::get_unix_time(),
         };
@@ -80,8 +80,8 @@ impl<'a> ScrapeResult<'a> {
         let s = ScrapeResult {
             info_hash: hash,
             announce_url: url,
-            data: data,
-            title: title,
+            data,
+            title,
             creation_date: date,
             poll_time: utils::get_unix_time(),
         };
@@ -132,13 +132,13 @@ impl GenericData {
         incomplete: i64,
     ) -> GenericData {
         GenericData {
-            hash: hash,
-            url: url,
+            hash,
+            url,
             creation_date: date,
-            title: title,
-            downloaded: downloaded,
-            complete: complete,
-            incomplete: incomplete,
+            title,
+            downloaded,
+            complete,
+            incomplete,
             poll_time: utils::get_unix_time(),
         }
     }

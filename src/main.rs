@@ -10,22 +10,18 @@ pub mod utils;
 
 use database::connection;
 
-use error::*;
-
 use requests::rss_parse;
 
 use parking_lot::RwLock;
 use std::sync::Arc;
 
-use futures::future::lazy;
 use futures::channel::mpsc;
-use futures::{Future, Sink, Stream, SinkExt};
+use futures::SinkExt;
 // use futures::stream::Stream;
 use tokio;
 
 use hashbrown::HashSet;
 
-use read::GenericData;
 
 #[allow(dead_code)]
 const SI_RSS: &str = r"https://nyaa.si/?page=rss";
@@ -59,10 +55,8 @@ macro_rules! rss_check {
 
 /// start the asynchronous database with handler
 fn start_database_task(rx_generic: mpsc::Receiver<connection::DatabaseUpsert>) {
-    database::connection::start_async(rx_generic);
+    tokio::spawn(database::connection::start_async(rx_generic))
 }
-
-use read::announce_components;
 
 #[tokio::main]
 async fn main() {
@@ -96,12 +90,12 @@ async fn main() {
     // core logic of the program
 	
 	let runtime = async move {
-		requests::tracking::filter_new_announces(
+		tokio::spawn(requests::tracking::filter_new_announces(
 			rx_filter,
 			tx_to_scrape.clone(),
 			tx_generic.clone(),
 			previous.clone(),
-		);
+		));
 	
 		requests::tracking::start_scrape_cycle_task(rx_to_scrape, tx_to_scrape, tx_generic);
 	

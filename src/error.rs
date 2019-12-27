@@ -56,32 +56,32 @@ pub enum Error {
 
 impl From<reqwest::Error> for Error {
     fn from(error: reqwest::Error) -> Error {
-        return Error::Reqwest(error);
+         Error::Reqwest(error)
     }
 }
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Error {
-        return Error::IO(error);
+         Error::IO(error)
     }
 }
 impl From<rss::Error> for Error {
     fn from(error: rss::Error) -> Error {
-        return Error::Rss(RssErrors::RawRssError(error));
+         Error::Rss(RssErrors::RawRssError(error))
     }
 }
 impl From<serde_bencode::Error> for Error {
     fn from(error: serde_bencode::Error) -> Error {
-        return Error::Torrent(TorrentErrors::SerdeError(error));
+         Error::Torrent(TorrentErrors::SerdeError(error))
     }
 }
 impl From<serde_urlencoded::ser::Error> for Error {
     fn from(error: serde_urlencoded::ser::Error) -> Error {
-        return Error::Announce(AnnounceErrors::SerdeError(error));
+         Error::Announce(AnnounceErrors::SerdeError(error))
     }
 }
 impl From<postgres::error::Error> for Error {
     fn from(error: postgres::error::Error) -> Error {
-        return Error::Postgres(error);
+         Error::Postgres(error)
     }
 }
 impl From<hyper::Error> for Error {
@@ -91,7 +91,7 @@ impl From<hyper::Error> for Error {
 }
 impl From<http::uri::InvalidUri> for Error {
     fn from(error: http::uri::InvalidUri) -> Error {
-        return Error::HTTP(HTTPErrors::Uri(error));
+         Error::HTTP(HTTPErrors::Uri(error))
     }
 }
 impl From<futures::channel::mpsc::TrySendError<Torrent>> for Error {

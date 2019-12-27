@@ -45,7 +45,7 @@ pub fn hex_to_char(input: &str) -> String {
         // dbg!{&input_clone};
     }
 
-    return input_clone;
+    input_clone
 }
 fn _hex_to_char() -> HashMap<String, String> {
     let mut chars: Vec<&str> = "! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~".split_ascii_whitespace().collect();
@@ -71,7 +71,7 @@ fn _hex_to_char() -> HashMap<String, String> {
         hm.insert(hex[i].clone(), chars[i].to_string().clone());
     }
 
-    return hm;
+    hm
 }
 
 fn reserved_characters() -> HashMap<String, String> {
@@ -92,7 +92,7 @@ fn reserved_characters() -> HashMap<String, String> {
             values.remove(0).to_string().to_ascii_lowercase(),
         );
     }
-    return hm;
+    hm
 }
 
 #[derive(Debug)]
@@ -137,7 +137,7 @@ impl AnnounceUrl {
         Self::_seialze_helper(&mut s, "compact", &self.compact.to_string());
 
         println! {"{}", s}
-        return s;
+        s
     }
 
     fn _seialze_helper(base: &mut String, cat: &str, var: &String) {
@@ -170,9 +170,9 @@ impl ScrapeUrl {
         base.push_str(&self.hash);
 
         match base.get(0..base.len() - 1) {
-            Some(x) => return Ok(base.to_string()),
+            Some(_) => Ok(base.to_string()),
             None => {
-                return Err(Error::SliceError(
+                Err(Error::SliceError(
                     "slicing url could not be done. this should not happen".to_string(),
                 ))
             } //TODO: Log the error

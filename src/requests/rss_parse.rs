@@ -1,7 +1,5 @@
 // use reqwest;
 use futures::channel::mpsc;
-use futures::{Future, Stream};
-use tokio::time::Timeout;
 
 use std::sync::Arc;
 
@@ -139,7 +137,7 @@ impl<'a> Timer<'a> {
         Timer {
             last_check: time::Instant::now(),
             time_between: between,
-            url: url,
+            url,
         }
     }
     pub fn allow_check(&mut self) -> bool {
@@ -164,7 +162,7 @@ fn nyaa_si_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
                 if extension_vec.len() == 1 {
                     let ext_index = &extension_vec[0];
                     match ext_index.value() {
-                        Some(infohash) => return Ok(infohash),
+                        Some(infohash) => Ok(infohash),
                         None => Err(Error::Rss(RssErrors::InfoHashFetch("No value field"))),
                     }
                 } else {
@@ -182,7 +180,7 @@ fn nyaa_si_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
 fn nyaa_pantsu_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
     let link = item.link();
     match link {
-        Some(data) => return utils::content_after_last_slash(&data),
-        None => return Err(Error::Rss(RssErrors::CouldNotReadRss)),
-    };
+        Some(data) => utils::content_after_last_slash(&data),
+        None => Err(Error::Rss(RssErrors::CouldNotReadRss)),
+    }
 }

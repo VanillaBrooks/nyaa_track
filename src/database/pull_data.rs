@@ -23,5 +23,5 @@ pub fn database_announce_components() -> Result<Vec<AnnounceComponents>, Error> 
         }
     }
 
-    return Ok(res_vec);
+    Ok(res_vec)
 }

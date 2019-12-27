@@ -1,16 +1,14 @@
-use futures::{Future, Stream};
 use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
 use std::io::prelude::*;
 
 use futures::channel::mpsc;
-use futures::sink::Sink;
 use futures::SinkExt;
 
 // mod error;
 use super::error::*;
 
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use tokio;
 
@@ -24,7 +22,7 @@ use torrent::Torrent;
 pub fn https_connection(thread_count: usize) -> Client<HttpsConnector<HttpConnector>> {
     let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);
-    return client;
+    client
 }
 
 // TODO: configure client pooling
@@ -41,7 +39,7 @@ impl Downloader {
         }
     }
     pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
-        Downloader { client: client }
+        Downloader {client }
     }
     pub async fn download(
         &self,
@@ -81,7 +79,7 @@ pub fn write_torrent_to_file(data: &Vec<u8>, save_name: &str) -> Result<String, 
     let mut file = std::fs::File::create(&base)?;
     file.write_all(&data)?;
 
-    return Ok(base);
+    Ok(base)
 }
 
 // BASE SAVE PATH
@@ -171,10 +169,10 @@ pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
 }
 
 pub fn get_unix_time() -> i64 {
-    return SystemTime::now()
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs() as i64;
+        .as_secs() as i64
 }
 
 // gives all torrents in directory (good and bad) and the path to them
@@ -189,7 +187,7 @@ fn serialize_all_torrents(directory: &str) -> Vec<(String, Result<Torrent, Error
         })
         .collect();
 
-    return dir;
+    dir
 }
 
 // returns ONLY GOOD torrents with their info hashes manually inserted from tracker

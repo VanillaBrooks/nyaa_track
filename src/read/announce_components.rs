@@ -1,21 +1,18 @@
-use super::super::read;
 use super::super::{database::connection, error::*, requests::url_encoding, utils};
 use std::time::Duration;
 
 use super::{AnnounceData, GenericData, ScrapeData};
 use futures::channel::mpsc;
-use futures::future;
-use futures::Sink;
+
 use futures::SinkExt;
 
 use std::sync::Arc;
 
 use hyper::client::{Client, HttpConnector};
 // use hyper::rt::{Future, Stream};
-use futures::{Future, Stream};
 use hyper_tls::HttpsConnector;
 
-use tokio::time::{Delay, Timeout};
+use tokio::time::Delay;
 
 enum RequestType {
     Announce((GenericData, i64)),
@@ -73,8 +70,8 @@ impl<'a> AnnounceComponents {
                 info_hash: Arc::new(hash),
                 creation_date: date,
                 title: Arc::new(title),
-                scrape_url: scrape_url,
-                announce_url: announce_url,
+                scrape_url,
+                announce_url,
                 client: utils::https_connection(4),
                 scrape_error_count: 0,
                 announce_error_count: 0,
@@ -186,25 +183,6 @@ impl<'a> AnnounceComponents {
                 tx_announce.send(self).await;
             }
         };
-        // .map(|(data, new_interval)| {
-        // 	println!{"good announce result"}
-
-        // 	self.next_announce = new_interval + utils::get_unix_time();
-
-        // 	if self.allow_future_scrapes(&data.complete) {
-        // 		tx_announce.send(self).await;
-        // 	} else{
-        // 		println!{"dropped item"}
-        // 	}
-
-        // 	let db_wrap = connection::DatabaseUpsert::Data(data);
-        // 	tx_database.send(db_wrap).await;
-
-        // 	})
-        // .map_err(|error| {
-        // 	// println!{"general announce errors: {:?}\n\tannounce url: {}\n\tscrape_url: {}", error, self_clone.announce_url, self_clone.scrape_url}
-
-        // });
 
         let delay = utils::create_delay(delay).await;
         tokio::spawn(fut);
@@ -219,10 +197,6 @@ impl<'a> AnnounceComponents {
         mut tx_database: mpsc::Sender<connection::DatabaseUpsert>,
     ) {
         // println!{"STARTING SCRAPE"}
-        let mut self_clone = self.clone();
-        let mut tx_announce_clone = tx_announce.clone();
-        let mut tx_database_clone = tx_database.clone();
-
         let fut = async move {
             let timeout_fut = tokio::time::timeout(Duration::from_secs(10), self.scrape()).await;
             // check if the timeout was ok
@@ -240,14 +214,14 @@ impl<'a> AnnounceComponents {
                 // the scrape data was not ok
                 else {
                     // TODO: log this error
-                    tx_announce_clone.send(self_clone).await;
+                    tx_announce.send(self).await;
                 }
             }
             // the timeout was not ok
             else {
                 // TODO: log the error
                 println! {"the timeout expired for a scrape"}
-                tx_announce_clone.send(self_clone).await;
+                tx_announce.send(self).await;
             }
         };
 
@@ -394,16 +368,16 @@ pub struct ElapsedTime {
 impl ElapsedTime {
     pub fn new(mut seconds: i64) -> Self {
         let mut hours = seconds / 3600;
-        let mut days = hours / 24;
+        let days = hours / 24;
 
         seconds -= hours * 3600;
 
         hours -= days * 24;
 
         Self {
-            days: days,
-            hours: hours,
-            seconds: seconds,
+            days,
+            hours,
+            seconds,
         }
     }
 
