@@ -1,8 +1,9 @@
-use postgres::{Connection, TlsMode};
+use postgres::{tls, Client};
 
-use futures::sync::mpsc;
+use futures::channel::mpsc;
 use futures::Future;
 use futures::Stream;
+use futures::StreamExt;
 use tokio_postgres::NoTls;
 
 use super::super::read::*;
@@ -55,10 +56,10 @@ impl DatabaseConfig {
 //postgresql://postgres:pass@localhost[:port][/database][?param1=val1[[&param2=val2]...]]
 const DB_ACCESS: &str = "postgresql://postgres:pass@localhost/nyaa";
 
-pub fn start_sync() -> Result<Connection, postgres::Error> {
+pub fn start_sync() -> Result<Client, postgres::Error> {
     let url: &'static str = DB_ACCESS;
     let url: String = DatabaseConfig::new().connection_url();
-    Connection::connect(url, TlsMode::None)
+    Client::connect(&url, tls::NoTls)
 }
 
 pub fn start_async(rx: mpsc::Receiver<DatabaseUpsert>) {

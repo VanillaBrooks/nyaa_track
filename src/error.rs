@@ -94,13 +94,13 @@ impl From<http::uri::InvalidUri> for Error {
         return Error::HTTP(HTTPErrors::Uri(error));
     }
 }
-impl From<futures::sync::mpsc::TrySendError<Torrent>> for Error {
-    fn from(error: futures::sync::mpsc::TrySendError<Torrent>) -> Self {
+impl From<futures::channel::mpsc::TrySendError<Torrent>> for Error {
+    fn from(error: futures::channel::mpsc::TrySendError<Torrent>) -> Self {
         Error::Futures(FuturesErrors::TrySendError)
     }
 }
-impl From<futures::sync::mpsc::TrySendError<AnnounceComponents>> for Error {
-    fn from(error: futures::sync::mpsc::TrySendError<AnnounceComponents>) -> Self {
+impl From<futures::channel::mpsc::TrySendError<AnnounceComponents>> for Error {
+    fn from(error: futures::channel::mpsc::TrySendError<AnnounceComponents>) -> Self {
         Error::Futures(FuturesErrors::TrySendError)
     }
 }

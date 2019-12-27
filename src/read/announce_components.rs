@@ -3,17 +3,18 @@ use super::super::{database::connection, error::*, requests::url_encoding, utils
 use std::time::Duration;
 
 use super::{AnnounceData, GenericData, ScrapeData};
+use futures::channel::mpsc;
 use futures::future;
-use futures::sync::mpsc;
 use futures::Sink;
 
 use std::sync::Arc;
 
 use hyper::client::{Client, HttpConnector};
-use hyper::rt::{Future, Stream};
+// use hyper::rt::{Future, Stream};
+use futures::{Future, Stream};
 use hyper_tls::HttpsConnector;
 
-use tokio::timer::{Delay, Timeout};
+use tokio::time::{Delay, Timeout};
 
 enum RequestType {
     Announce((GenericData, i64)),
@@ -259,52 +260,37 @@ impl<'a> AnnounceComponents {
         Async code for running a scrape
 
     */
-    fn scrape(self: &Self) -> impl Future<Item = GenericData, Error = Error> {
-        let hash = self.info_hash.clone();
-        let hash_clone = self.info_hash.clone();
-        let url = self.url.clone();
-        let creation_date = self.creation_date.clone();
-        let title = self.title.clone();
+    async fn scrape(self: &Self) -> Result<GenericData, Error> {
+        // get data, convert to body
+        let request = self.client.get(self.scrape_url.clone()).await?.into_body();
+        // convert body to bytes
+        let request_bytes = hyper::body::to_bytes(request)
+            .await?
+            .into_iter()
+            .collect::<Vec<_>>();
 
-        let request = self
-            .client
-            // Fetch the url...
-            .get(self.scrape_url.clone())
-            // And then, if we get a response back...
-            .and_then(|res| {
-                // asynchronously concatenate chunks of the body
-                res.into_body().concat2()
-            })
-            .from_err::<Error>()
-            .and_then(move |body| {
-                // dbg!{"getting data"};
-                let data = body.into_bytes().into_iter().collect::<Vec<_>>();
-
-                match ScrapeData::new_bytes(&data) {
-                    Ok(scrape) => {
-                        // turn the parsed dictionary into an iterator
-                        match scrape.files.values().into_iter().next() {
-                            Some(data) => {
-                                let gen_data = GenericData::new(
-                                    hash,
-                                    url,
-                                    creation_date,
-                                    title,
-                                    data.downloaded,
-                                    data.complete,
-                                    data.incomplete,
-                                );
-
-                                Ok(gen_data)
-                            }
-                            None => Err(Error::HTTP(HTTPErrors::InvalidData)),
-                        }
-                    }
-                    Err(e) => Err(Error::HTTP(HTTPErrors::ParseError)),
-                }
-            });
-
-        request
+        // parse the data
+        if let Ok(scrape) = ScrapeData::new_bytes(&request_bytes) {
+            // get the first value from the data
+            // TODO: better api for this
+            if let Some(data) = scrape.files.values().into_iter().next() {
+                // package all data into one generic struct
+                let generic_data = GenericData::new(
+                    self.info_hash.clone(),
+                    self.url.clone(),
+                    self.creation_date.clone(),
+                    self.title.clone(),
+                    data.downloaded,
+                    data.complete,
+                    data.incomplete,
+                );
+                Ok(generic_data)
+            } else {
+                Err(Error::HTTP(HTTPErrors::InvalidData))
+            }
+        } else {
+            Err(Error::HTTP(HTTPErrors::InvalidData))
+        }
     }
 
     /*
@@ -312,51 +298,39 @@ impl<'a> AnnounceComponents {
         Async code for running an announce
 
     */
-    fn announce(self: &Self) -> impl Future<Item = (GenericData, i64), Error = Error> {
-        let hash = self.info_hash.clone();
-        let url = self.url.clone();
-        let creation_date = self.creation_date.clone();
-        let title = self.title.clone();
-
+    async fn announce(self: &Self) -> Result<(GenericData, i64), Error> {
         let request = self
             .client
-            // Fetch the url...
             .get(self.announce_url.clone())
-            // And then, if we get a response back...
-            .and_then(|res| {
-                // asynchronously concatenate chunks of the body
-                res.into_body().concat2()
-            })
-            .from_err::<Error>()
-            .and_then(move |body| {
-                // dbg!{"getting data"};
-                let data = body.into_bytes().into_iter().collect::<Vec<_>>();
+            .await?
+            .into_body();
+        let request_bytes = hyper::body::to_bytes(request)
+            .await?
+            .into_iter()
+            .collect::<Vec<u8>>();
 
-                match AnnounceData::new_bytes(&data) {
-                    Ok(announce) => {
-                        let new_interval = if let Some(new_interval) = announce.interval {
-                            new_interval
-                        } else {
-                            600
-                        };
+        if let Ok(announce) = AnnounceData::new_bytes(&request_bytes) {
+            // fetch the tracker timeout before the next announce is allowed
+            let new_interval = if let Some(interval) = announce.interval {
+                interval
+            } else {
+                600
+            };
 
-                        let gen_data = GenericData::new(
-                            hash,
-                            url,
-                            creation_date,
-                            title,
-                            announce.downloaded,
-                            announce.complete,
-                            announce.incomplete,
-                        );
-
-                        Ok((gen_data, new_interval))
-                    }
-                    Err(e) => Err(Error::HTTP(HTTPErrors::InvalidData)),
-                }
-            });
-
-        request
+            // store data generically
+            let gen_data = GenericData::new(
+                self.info_hash.clone(),
+                self.url.clone(),
+                self.creation_date.clone(),
+                self.title.clone(),
+                announce.downloaded,
+                announce.complete,
+                announce.incomplete,
+            );
+            Ok((gen_data, new_interval))
+        } else {
+            Err(Error::HTTP(HTTPErrors::InvalidData))
+        }
     }
 
     fn allow_future_scrapes(&self, seeders: &i64) -> bool {

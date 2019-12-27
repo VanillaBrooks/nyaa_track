@@ -2,7 +2,7 @@
 use super::super::database::connection;
 use super::super::read::{AnnounceComponents, GenericData};
 
-use futures::sync::mpsc;
+use futures::channel::mpsc;
 use futures::{Future, Stream};
 
 use hashbrown::HashSet;

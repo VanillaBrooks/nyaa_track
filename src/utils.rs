@@ -1,17 +1,18 @@
+use futures::{Future, Stream};
 use hyper::client::{Client, HttpConnector};
-use hyper::rt::{Future, Stream};
 use hyper_tls::HttpsConnector;
 use std::io::prelude::*;
 
+use futures::channel::mpsc;
 use futures::sink::Sink;
-use futures::sync::mpsc;
+use futures::SinkExt;
 
 // mod error;
 use super::error::*;
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use tokio::timer::Delay;
+use tokio::time::Delay;
 
 use hashbrown::HashSet;
 
@@ -42,38 +43,52 @@ impl Downloader {
     pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
         Downloader { client: client }
     }
-    pub fn download(
+    pub async fn download(
         &self,
         url: &str,
         hash: String,
         tx: mpsc::Sender<AnnounceComponents>,
-    ) -> impl Future<Item = (), Error = Error> {
+    ) -> Result<(), Error> {
         let url = url
             .parse()
             .expect("URI was not able to be parsed correctly in Downloader::download");
 
         let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
-        self.client
-            .get(url)
-            .and_then(|res| res.into_body().concat2())
-            .from_err::<Error>()
-            .and_then(|body| {
-                let data = body.into_bytes().into_iter().collect::<Vec<_>>();
-                Ok(data)
-            })
-            .and_then(move |data| {
-                // write_torrent_to_file(&data, &save_name);
+        // self.client
+        //     .get(url)
+        //     .and_then(|res| res.into_body().concat2())
+        //     .from_err::<Error>()
+        //     .and_then(|body| {
+        //         let data = body.into_bytes().into_iter().collect::<Vec<_>>();
+        //         Ok(data)
+        //     })
+        //     .and_then(move |data| {
+        //         // write_torrent_to_file(&data, &save_name);
 
-                match Torrent::new_bytes(&data) {
-                    Ok(torrent) => {
-                        let ann = torrent_to_announce_components(torrent, &hash)?;
-                        tx.send(ann).wait();
-                        Ok(())
-                    }
-                    Err(e) => Err(e),
-                }
-            })
-            .from_err::<Error>()
+        //         match Torrent::new_bytes(&data) {
+        //             Ok(torrent) => {
+        //                 let ann = torrent_to_announce_components(torrent, &hash)?;
+        //                 tx.send(ann).wait();
+        //                 Ok(())
+        //             }
+        //             Err(e) => Err(e),
+        //         }
+        //     })
+        //     .from_err::<Error>()
+
+        let res = self.client.get(url).await?.into_body();
+        let res_bytes = hyper::body::to_bytes(res).await?.into_iter().collect::<Vec<u8>>();
+
+        match Torrent::new_bytes(&res_bytes) {
+            Ok(torrent) => {
+                let ann = torrent_to_announce_components(torrent, &hash)?;
+                tx.send(ann).await;
+                Ok(())
+            },
+            Err(e) => Err(e)
+        };
+
+        unimplemented!{}
     }
 }
 

@@ -282,7 +282,7 @@ impl ToBencode for Info {
     }
 }
 
-//TODO fix nodes
+// TODO: fix nodes
 #[derive(Debug, Deserialize, Clone)]
 pub struct Torrent {
     pub info: Info,
@@ -320,46 +320,8 @@ impl Torrent {
     pub fn new_bytes(input_bytes: &Vec<u8>) -> Result<Torrent, Error> {
         let torrent = de::from_bytes::<Torrent>(&input_bytes)?;
         Ok(torrent)
-
-        /*
-        This code will not work correctly since if it does not have a field it will not
-        be incorporated into the struct
-
-        let mut info = ser::to_bytes::<Info>(&torrent.info)?;
-        torrent.info.info_hash = Some(sha1(&info));
-
-        /////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////
-
-        this code will regex search the file for the dictionary, hash it,
-        and then insert it into the torrent struct. Shit does not currently work
-        as part of the file is binary encoded.
-
-        let re = Regex::new("[0-9]:infod").unwrap();
-        let result = re.find(&input_bytes);
-
-        match result {
-            Some(x_plus_one) => {
-                println!{"\n\n\nmade it"}
-                let info_dict = input_bytes.get(x_plus_one.end()-1..x_plus_one.end()+50);
-                    dbg!{String::from_utf8(info_dict.unwrap().to_vec())};
-
-                match info_dict{
-                    Some(to_hash)=>{
-                        let hash= sha1(to_hash);
-                        torrent.info.info_hash = Some(hash);
-
-                    }
-                    None => ()
-                }
-
-            },
-            None => ()
-        }
-
-        Ok(torrent)
-        */
     }
+
     pub fn new_file(filename: &str) -> Result<Torrent, Error> {
         let mut buffer = Vec::new();
         let mut file = std::fs::File::open(filename)?;

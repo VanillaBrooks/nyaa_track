@@ -75,10 +75,10 @@ fn main() {
 
     dbg! {"finished adding to queue"};
 
-	// tracking for nyaa.si
+    // tracking for nyaa.si
     let mut si_timer = rss_parse::Timer::new(60, SI_RSS);
 
-	// core logic of the program
+    // core logic of the program
     let runtime = lazy(move || {
         requests::tracking::filter_new_announces(
             rx_filter,

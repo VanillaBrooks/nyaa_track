@@ -1,7 +1,7 @@
 // use reqwest;
-use futures::sync::mpsc;
-use hyper::rt::{Future, Stream};
-use tokio::timer::Timeout;
+use futures::channel::mpsc;
+use futures::{Future, Stream};
+use tokio::time::Timeout;
 
 use std::sync::Arc;
 
@@ -42,14 +42,30 @@ macro_rules! parse {
                     Some(good_url) => {
                         let tx = $tx.clone();
                         //create a downloading future
-                        let download_fut = Timeout::new(
-                            $dl.download(good_url, info_hash.to_string(), tx),
-                            Duration::from_secs(5),
-                        ) // each future has 5 seconds to complete)
-                        .map(|_| println! {"recieved good torrent data!"})
-                        .map_err(|x| println! {"Error downloading torrent data"});
+                        // let download_fut = Timeout::new(
+                        //     $dl.download(good_url, info_hash.to_string(), tx),
+                        //     Duration::from_secs(5),
+                        // ) // each future has 5 seconds to complete)
+                        
+                        let block = async move {
+                            let timeout_fut = tokio::time::timeout(
+                                Duration::from_secs(5), 
+                                $dl.download(good_url, info_hash.to_string(), tx)
+                            ).await;
 
-                        tokio::spawn(download_fut);
+                            if timeout_fut.is_ok() {
+                                println!{"recieved good torrent data"}
+                            }
+                            else {
+                                println!{"Error downloading torrent data"}
+                            }
+                        };
+
+                        tokio::spawn(block);
+                        // .map(|_| println! {"recieved good torrent data!"})
+                        // .map_err(|x| println! {"Error downloading torrent data"});
+
+                        // tokio::spawn(download_fut);
                     }
 
                     None => println! {"error with link"},
@@ -69,11 +85,11 @@ macro_rules! parse {
 // download xml data from a url as well as their associated torrents
 // return a vector of structs required to make announcements
 // will only Error if the provided url is incorrect
-pub fn get_xml<'a>(
+pub async fn get_xml(
     url: &str,
     previous: Arc<RwLock<HashSet<String>>>,
     tx_to_filter: mpsc::Sender<AnnounceComponents>, // ) -> Result<Data, Error> {
-) -> impl Future<Item = (), Error = Error> + 'a {
+) -> Result<(), Error> {
     // decide what hash-parsing function we will use for the given url
     let parse_funct = if url.contains(".si") {
         nyaa_si_hash
@@ -84,46 +100,80 @@ pub fn get_xml<'a>(
     let client = utils::https_connection(10);
     let uri = url.parse().expect("rss url invalid");
 
-    client
-        .get(uri)
-        .and_then(|res| res.into_body().concat2())
-        .from_err::<Error>()
-        .and_then(|data| {
-            let data = data.into_bytes().into_iter().collect::<Vec<u8>>();
+    // client
+    //     .get(uri)
+    //     .and_then(|res| res.into_body().concat2())
+    //     .from_err::<Error>()
+    //     .and_then(|data| {
+    //         let data = data.into_bytes().into_iter().collect::<Vec<u8>>();
 
-            // create XML file path
-            let mut path: String = r".\temp".to_string();
+    //         // create XML file path
+    //         let mut path: String = r".\temp".to_string();
 
-            std::fs::create_dir(&path);
+    //         std::fs::create_dir(&path);
 
-            path.push_str(r"\");
-            path.push_str(&utils::get_unix_time().to_string());
-            path.push_str(".xml");
+    //         path.push_str(r"\");
+    //         path.push_str(&utils::get_unix_time().to_string());
+    //         path.push_str(".xml");
 
-            // request xml data and read to file
-            let mut file = fs::File::create(&path).expect("xml file could not be created");
-            file.write_all(&data);
+    //         // request xml data and read to file
+    //         let mut file = fs::File::create(&path).expect("xml file could not be created");
+    //         file.write_all(&data);
 
-            // read xml data from file
-            let file = fs::File::open(&path).expect("file could not be opened");
-            let channel = rss::Channel::read_from(std::io::BufReader::new(file))
-                .expect("error when reading rss");
-            let items = channel.into_items().to_vec();
+    //         // read xml data from file
+    //         let file = fs::File::open(&path).expect("file could not be opened");
+    //         let channel = rss::Channel::read_from(std::io::BufReader::new(file))
+    //             .expect("error when reading rss");
+    //         let items = channel.into_items().to_vec();
 
-            // std::fs::remove_file(path);
+    //         // std::fs::remove_file(path);
 
-            let dl = utils::Downloader::new();
+    //         let dl = utils::Downloader::new();
 
-            Ok((items, dl))
-        })
-        .and_then(move |(mut items, dl)| {
-            for _ in 0..items.len() {
-                let item = items.remove(0);
+    //         Ok((items, dl))
+    //     })
+    //     .and_then(move |(mut items, dl)| {
+    //         for _ in 0..items.len() {
+    //             let item = items.remove(0);
 
-                parse! {parse_funct, item, previous, dl, tx_to_filter};
-            }
-            Ok(())
-        })
+    //             parse! {parse_funct, item, previous, dl, tx_to_filter};
+    //         }
+    //         Ok(())
+    //     });
+
+    let res = client.get(uri).await?.into_body();
+    let res_bytes = hyper::body::to_bytes(res).await?.into_iter().collect::<Vec<u8>>();
+
+    let mut path :String = r".\temp".into();
+    
+    // create the temp directory and ignore any error
+    match std::fs::create_dir(path) {_ => ()};
+
+    path.push_str(r"\");
+    path.push_str(&utils::get_unix_time().to_string());
+    path.push_str(".xml");
+
+    let mut file = fs::File::create(&path).expect("xml file could not be created");
+    file.write_all(&res_bytes);
+
+    // expect should never trigger since its based on the unix epoch
+    // TODO: read directly from rss feed instead of saving and importing
+    let file = fs::File::open(&path).expect("file could not be opened");
+    let channel = rss::Channel::read_from(std::io::BufReader::new(file))
+        .expect("error when reading rss");
+    let mut items = channel.into_items().to_vec();
+
+    // std::fs::remove_file(path);
+
+    let dl = utils::Downloader::new();
+
+    for _ in 0..items.len() {
+        let item = items.remove(0);
+
+        parse!{parse_funct, item, previous, dl, tx_to_filter};
+    }
+
+    unimplemented!{}
 }
 
 // timer for rss updates
