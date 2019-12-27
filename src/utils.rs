@@ -12,7 +12,7 @@ use super::error::*;
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use tokio::time::Delay;
+use tokio;
 
 use hashbrown::HashSet;
 
@@ -22,7 +22,7 @@ use torrent::Torrent;
 // use announce_result::AnnounceResult;
 
 pub fn https_connection(thread_count: usize) -> Client<HttpsConnector<HttpConnector>> {
-    let https = HttpsConnector::new(thread_count).unwrap();
+    let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);
     return client;
 }
@@ -47,48 +47,30 @@ impl Downloader {
         &self,
         url: &str,
         hash: String,
-        tx: mpsc::Sender<AnnounceComponents>,
+        mut tx: mpsc::Sender<AnnounceComponents>,
     ) -> Result<(), Error> {
         let url = url
             .parse()
             .expect("URI was not able to be parsed correctly in Downloader::download");
 
         let mut buffer: Vec<u8> = Vec::with_capacity(10_000);
-        // self.client
-        //     .get(url)
-        //     .and_then(|res| res.into_body().concat2())
-        //     .from_err::<Error>()
-        //     .and_then(|body| {
-        //         let data = body.into_bytes().into_iter().collect::<Vec<_>>();
-        //         Ok(data)
-        //     })
-        //     .and_then(move |data| {
-        //         // write_torrent_to_file(&data, &save_name);
-
-        //         match Torrent::new_bytes(&data) {
-        //             Ok(torrent) => {
-        //                 let ann = torrent_to_announce_components(torrent, &hash)?;
-        //                 tx.send(ann).wait();
-        //                 Ok(())
-        //             }
-        //             Err(e) => Err(e),
-        //         }
-        //     })
-        //     .from_err::<Error>()
 
         let res = self.client.get(url).await?.into_body();
-        let res_bytes = hyper::body::to_bytes(res).await?.into_iter().collect::<Vec<u8>>();
+        let res_bytes = hyper::body::to_bytes(res)
+            .await?
+            .into_iter()
+            .collect::<Vec<u8>>();
 
         match Torrent::new_bytes(&res_bytes) {
             Ok(torrent) => {
                 let ann = torrent_to_announce_components(torrent, &hash)?;
                 tx.send(ann).await;
                 Ok(())
-            },
-            Err(e) => Err(e)
+            }
+            Err(e) => Err(e),
         };
 
-        unimplemented!{}
+        unimplemented! {}
     }
 }
 
@@ -330,7 +312,7 @@ pub fn check_hashes(dir_to_read: &str) -> () {
 }
 
 pub fn torrent_to_announce_components(
-    mut torrent: Torrent,
+    torrent: Torrent,
     info_hash: &str,
 ) -> Result<AnnounceComponents, Error> {
     match torrent.info.name() {
@@ -347,11 +329,12 @@ pub fn torrent_to_announce_components(
     }
 }
 
-pub fn create_delay(seconds: i64) -> Delay {
-    let now = Instant::now();
+pub fn create_delay(seconds: i64) -> tokio::time::Delay {
+    let now = tokio::time::Instant::now();
     let fut_time = now
-        .checked_add(Duration::new(seconds as u64, 0))
+        .checked_add(tokio::time::Duration::new(seconds as u64, 0))
         .expect("DELAY ERROR: not in the future");
 
-    Delay::new(fut_time)
+    // Delay::new(fut_time)
+    tokio::time::delay_until(fut_time)
 }

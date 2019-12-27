@@ -1,11 +1,12 @@
+use super::super::read;
 use super::super::{database::connection, error::*, requests::url_encoding, utils};
-
 use std::time::Duration;
 
 use super::{AnnounceData, GenericData, ScrapeData};
 use futures::channel::mpsc;
 use futures::future;
 use futures::Sink;
+use futures::SinkExt;
 
 use std::sync::Arc;
 
@@ -88,7 +89,7 @@ impl<'a> AnnounceComponents {
         }
     }
 
-    pub fn get(
+    pub async fn get(
         self,
         tx_announce: mpsc::Sender<AnnounceComponents>,
         tx_database: mpsc::Sender<connection::DatabaseUpsert>,
@@ -103,154 +104,152 @@ impl<'a> AnnounceComponents {
         // too many scrape erros for how long the annoucer has existed
         else if self.scrape_errors_too_high() {
             self.run_announce(next_epoch_announce, tx_announce, tx_database)
+                .await;
         }
         // run a (potentially) delayed scrape
         else {
-            let delay = self.time_existance().generate_delay(1);
+            let fut = async move {
+                // TODO: make sure generate delay is taking in the right args here. its looks suspicious
+                let delay = self.time_existance().generate_delay(1).await;
+                self.run_scrape(tx_announce, tx_database).await
+            };
 
-            let del_fut = 
-				delay.map(|_| self.run_scrape(tx_announce, tx_database) )
-				.map_err(|_| println!{"\n\n\n\n erorr spawning scrape future delay this should not happen \n\n\n\n"});
-            tokio::spawn(del_fut);
+            tokio::spawn(fut);
         }
     }
 
     /*
         STARTER METHOD FOR announces
     */
-    fn run_announce(
+    async fn run_announce(
         mut self,
         delay: i64,
-        tx_announce: mpsc::Sender<AnnounceComponents>,
-        tx_database: mpsc::Sender<connection::DatabaseUpsert>,
+        mut tx_announce: mpsc::Sender<AnnounceComponents>,
+        mut tx_database: mpsc::Sender<connection::DatabaseUpsert>,
     ) {
-        let mut self_clone = self.clone();
-        let tx_announce_clone = tx_announce.clone();
-        let tx_database_clone = tx_database.clone();
 
         println! {"STARTING ANNOUNCE"}
 
-        let fut = 
-		Timeout::new(self.announce() , Duration::from_secs(10))
-				.map(|(data, new_interval)| {
-					println!{"good announce result"}
+        let fut = async move {
+            let timeout_fut = tokio::time::timeout(Duration::from_secs(10), self.announce()).await;
 
-					self.next_announce = new_interval + utils::get_unix_time();
+            if let Ok(res) = timeout_fut {
+                match res {
+                    Ok((data, new_interval)) => {
+                        println! {"good announce result"}
 
-					if self.allow_future_scrapes(&data.complete) {
-						tx_announce.send(self).wait();
-					} else{
-						println!{"dropped item"}
-					}
+                        self.next_announce = new_interval + utils::get_unix_time();
 
-					
-					let db_wrap = connection::DatabaseUpsert::Data(data);
-					tx_database.send(db_wrap).wait();
+                        if self.allow_future_scrapes(&data.complete) {
+                            tx_announce.send(self).await;
+                        } else {
+                            println! {"dropped item"}
+                        }
 
-					})
-				.map_err(|error| {
-					// println!{"general announce errors: {:?}\n\tannounce url: {}\n\tscrape_url: {}", error, self_clone.announce_url, self_clone.scrape_url}
+                        let db_wrap = connection::DatabaseUpsert::Data(data);
+                        tx_database.send(db_wrap).await;
+                    }
+                    Err(error) => {
+                        // // TODO: clean this horrific thing up
+                        // match error.into_inner(){
+                        //     Some(error) =>
+                        //         match error {
+                        //             Error::HTTP(val) =>
+                        //                 match val {
+                        //                     HTTPErrors::InvalidData => {		// this is likely caused by the announce being triggered to o quickly
+                        //                         println!{"announce invalid data being logged to database"}
 
-					match error.into_inner(){
-						Some(error) => 
-							match error {
-								Error::HTTP(val) => 
-									match val {
-										HTTPErrors::InvalidData => {		// this is likely caused by the announce being triggered to o quickly
-											println!{"announce invalid data being logged to database"}
+                        //                         let now = utils::get_unix_time();
+                        //                         self_clone.incomplete_data += 1;
+                        //                         self_clone.next_announce = now + (30 * 60);
+                        //                         let db_wrap = connection::ErrorType::new(connection::ErrorType::InvalidAnnounce, self_clone.info_hash.clone(), now);
 
-											let now = utils::get_unix_time();
-											self_clone.incomplete_data += 1;
-											self_clone.next_announce = now + (30 * 60);
-											let db_wrap = connection::ErrorType::new(connection::ErrorType::InvalidAnnounce, self_clone.info_hash.clone(), now);
-										
-											tx_database_clone.send(db_wrap).wait();
-										}
-										HTTPErrors::ParseError =>{
-											self_clone.announce_error_count += 1;
-											println!{"announce parse error : {:?}\nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}\ttotal errors {}", &val, self_clone.scrape_url, self_clone.info_hash, self_clone.title, self_clone.announce_error_count}
+                        //                         tx_database_clone.send(db_wrap).await;
+                        //                     }
+                        //                     HTTPErrors::ParseError =>{
+                        //                         self_clone.announce_error_count += 1;
+                        //                         println!{"announce parse error : {:?}\nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}\ttotal errors {}", &val, self_clone.scrape_url, self_clone.info_hash, self_clone.title, self_clone.announce_error_count}
 
-										}
-										_=> println!{"connectin error"}
-									}
-								_ => println!{"timeout error announce (prob. serialize data) \nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}", self_clone.scrape_url, self_clone.info_hash, self_clone.title}
-							}
-						None => ()
-					}
+                        //                     }
+                        //                     _=> println!{"connectin error"}
+                        //                 }
+                        //             _ => println!{"timeout error announce (prob. serialize data) \nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}", self_clone.scrape_url, self_clone.info_hash, self_clone.title}
+                        //         }
+                        //     None => ()
+                        // }
 
-					tx_announce_clone.send(self_clone).wait();
+                        tx_announce.send(self).await;
+                    }
+                };
+            } else {
+                // TODO : log the error here
+                tx_announce.send(self).await;
+            }
+        };
+        // .map(|(data, new_interval)| {
+        // 	println!{"good announce result"}
 
-				});
+        // 	self.next_announce = new_interval + utils::get_unix_time();
 
-        let delay = utils::create_delay(delay);
+        // 	if self.allow_future_scrapes(&data.complete) {
+        // 		tx_announce.send(self).await;
+        // 	} else{
+        // 		println!{"dropped item"}
+        // 	}
 
-        let delay_fut = delay
-            .map(|_| {
-                tokio::spawn(fut);
-            })
-            .map_err(|x| println! {"\n\n\n\n\n\n delay error this should not happen \n\n\n\n\n"});
-        tokio::spawn(delay_fut);
+        // 	let db_wrap = connection::DatabaseUpsert::Data(data);
+        // 	tx_database.send(db_wrap).await;
+
+        // 	})
+        // .map_err(|error| {
+        // 	// println!{"general announce errors: {:?}\n\tannounce url: {}\n\tscrape_url: {}", error, self_clone.announce_url, self_clone.scrape_url}
+
+        // });
+
+        let delay = utils::create_delay(delay).await;
+        tokio::spawn(fut);
     }
 
     /*
         STARTER METHOD FOR SCRAPES
     */
-    fn run_scrape(
+    async fn run_scrape(
         mut self,
-        tx_announce: mpsc::Sender<AnnounceComponents>,
-        tx_database: mpsc::Sender<connection::DatabaseUpsert>,
+        mut tx_announce: mpsc::Sender<AnnounceComponents>,
+        mut tx_database: mpsc::Sender<connection::DatabaseUpsert>,
     ) {
         // println!{"STARTING SCRAPE"}
         let mut self_clone = self.clone();
-        let tx_announce_clone = tx_announce.clone();
-        let tx_database_clone = tx_database.clone();
+        let mut tx_announce_clone = tx_announce.clone();
+        let mut tx_database_clone = tx_database.clone();
 
-        let fut = 
-		Timeout::new(self.scrape() , Duration::from_secs(10))
-				.map(|x| {
-					if self.allow_future_scrapes(&x.complete) {
-						tx_announce.send(self).wait();
-					}
-					else{
-						println!{"dropped item"}
-					}
-					let db_wrap = connection::DatabaseUpsert::Data(x);
-					tx_database.send(db_wrap).wait();
-
-					})
-				.map_err(|error| {
-
-					// println!{"general scrape errors: {:?}\nnnounce url: {}\n\tscrape_url: {}", error, self_clone.announce_url, self_clone.scrape_url}
-					match error.into_inner(){
-						Some(error) => 
-							match error {
-								Error::HTTP(val) => 
-									match val {
-										HTTPErrors::InvalidData => {
-											println!{"scrape invalid data being logged to database"}
-
-											self_clone.incomplete_data += 1;
-
-											let now = utils::get_unix_time();
-											let db_wrap = connection::ErrorType::new(connection::ErrorType::InvalidAnnounce, self_clone.info_hash.clone(), now);
-											tx_database_clone.send(db_wrap).wait();
-
-										}
-										HTTPErrors::ParseError =>{
-											self_clone.scrape_error_count += 1;
-											println!{"scrape parse error : {:?}\nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}\ttotal errors {}", &val, self_clone.scrape_url, self_clone.info_hash, self_clone.title, self_clone.scrape_error_count}
-
-										}
-										_=> println!{"connectin error"}
-									}
-								_ => println!{"timeout error (prob. serialize data) \nurl:\t{:?}\nhash:\t{:?}\ntitle:\t{:?}", self_clone.scrape_url, self_clone.info_hash, self_clone.title}
-							}
-						None => ()
-					}
-
-					tx_announce_clone.send(self_clone).wait();
-
-				});
+        let fut = async move {
+            let timeout_fut = tokio::time::timeout(Duration::from_secs(10), self.scrape()).await;
+            // check if the timeout was ok
+            if let Ok(res) = timeout_fut {
+                // check the contents of the actual scrape data
+                if let Ok(scrape_data) = res {
+                    if self.allow_future_scrapes(&scrape_data.complete) {
+                        tx_announce.send(self).await;
+                    } else {
+                        println! {"dropped item"}
+                    }
+                    let db_wrap = connection::DatabaseUpsert::Data(scrape_data);
+                    tx_database.send(db_wrap).await;
+                }
+                // the scrape data was not ok
+                else {
+                    // TODO: log this error
+                    tx_announce_clone.send(self_clone).await;
+                }
+            }
+            // the timeout was not ok
+            else {
+                // TODO: log the error
+                println! {"the timeout expired for a scrape"}
+                tx_announce_clone.send(self_clone).await;
+            }
+        };
 
         tokio::spawn(fut);
     }

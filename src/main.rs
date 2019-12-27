@@ -18,9 +18,10 @@ use parking_lot::RwLock;
 use std::sync::Arc;
 
 use futures::future::lazy;
-use futures::sync::mpsc;
-use futures::{Future, Sink, Stream};
+use futures::channel::mpsc;
+use futures::{Future, Sink, Stream, SinkExt};
 // use futures::stream::Stream;
+use tokio;
 
 use hashbrown::HashSet;
 
@@ -38,11 +39,19 @@ macro_rules! rss_check {
         if $timer.allow_check() {
             dbg! {"running rss check"};
             let rss_previous_clone = $previous.clone();
-            let tx_ann_clone = $tx_ann.clone();
+			let tx_ann_clone = $tx_ann.clone();
+			let url_clone = $timer.url.clone();
+			
+            let rss_fut = async move {
+				let res = rss_parse::get_xml(url_clone, rss_previous_clone, tx_ann_clone).await;
 
-            let rss_fut = rss_parse::get_xml($timer.url, rss_previous_clone, tx_ann_clone)
-                .map(|_| println! {"finished RSS write"})
-                .map_err(|e| println! {"Error with RSS task "});
+				if res.is_ok() {
+					println!{"finished rss write"}
+				}else {
+					println!{" error with rss task"}
+				}
+
+			};
             tokio::spawn(rss_fut);
         }
     };
@@ -55,21 +64,27 @@ fn start_database_task(rx_generic: mpsc::Receiver<connection::DatabaseUpsert>) {
 
 use read::announce_components;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let size = 1_024 * 1_024 * 100; // 100 MB cache
     let (tx_generic, rx_generic) = mpsc::channel::<connection::DatabaseUpsert>(size); // to database
-    let (tx_to_scrape, rx_to_scrape) = mpsc::channel::<read::AnnounceComponents>(size); // to the scrape / announce cycle
+    let (mut tx_to_scrape, rx_to_scrape) = mpsc::channel::<read::AnnounceComponents>(size); // to the scrape / announce cycle
     let (tx_filter, rx_filter) = mpsc::channel::<read::AnnounceComponents>(size); // to the step between rss and announce
 
     let mut previous_hashes = HashSet::<String>::new();
-    database::pull_data::database_announce_components()
-        .expect("sync database pull error")
-        .into_iter()
-        // .take(1)
-        .for_each(|x| {
-            previous_hashes.insert(x.info_hash.to_string());
-            tx_to_scrape.clone().send(x).wait();
-        });
+	let mut ann_components = database::pull_data::database_announce_components().expect("sync database pull error");
+	for _ in 0..ann_components.len(){
+		let comp = ann_components.remove(0);
+		previous_hashes.insert(comp.info_hash.to_string());
+		tx_to_scrape.send(comp).await;
+	}
+        // .expect("sync database pull error")
+        // .into_iter()
+        // // .take(1)
+        // .for_each(move |x| {
+        //     previous_hashes.insert(x.info_hash.to_string());
+        //     tx_to_scrape.clone().send(x).await;
+        // });
 
     let previous = Arc::new(RwLock::new(previous_hashes));
 
@@ -79,28 +94,27 @@ fn main() {
     let mut si_timer = rss_parse::Timer::new(60, SI_RSS);
 
     // core logic of the program
-    let runtime = lazy(move || {
-        requests::tracking::filter_new_announces(
-            rx_filter,
-            tx_to_scrape.clone(),
-            tx_generic.clone(),
-            previous.clone(),
-        );
+	
+	let runtime = async move {
+		requests::tracking::filter_new_announces(
+			rx_filter,
+			tx_to_scrape.clone(),
+			tx_generic.clone(),
+			previous.clone(),
+		);
+	
+		requests::tracking::start_scrape_cycle_task(rx_to_scrape, tx_to_scrape, tx_generic);
+	
+		start_database_task(rx_generic);
+	
+		loop {
+			/*
+				fetch rss when the timer on it allows us to do so.
+			*/
+			rss_check! {si_timer, previous, tx_filter};
+		}
 
-        requests::tracking::start_scrape_cycle_task(rx_to_scrape, tx_to_scrape, tx_generic);
+	};
 
-        start_database_task(rx_generic);
-
-        loop {
-            /*
-                fetch rss when the timer on it allows us to do so.
-            */
-            rss_check! {si_timer, previous, tx_filter};
-        }
-
-        Ok(())
-    });
-
-    dbg! {"spawning runtime"};
-    tokio::run(runtime);
+	tokio::spawn(runtime);
 }
