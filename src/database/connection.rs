@@ -7,11 +7,11 @@ use tokio_postgres::NoTls;
 
 use super::super::read::*;
 
-use std::sync::Arc;
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 use serde_json;
-use std::io;
 use std::fs;
+use std::io;
+use std::sync::Arc;
 
 macro_rules! raw {
     (into; $($arc_name:expr => $new_name:ident),+) => {
@@ -28,45 +28,42 @@ macro_rules! raw {
     };
 }
 
-
 #[derive(Serialize, Deserialize)]
-struct DatabaseConfig{
-	port: u32,
-	database_name: String,
-	username: String,
-	password: String
+struct DatabaseConfig {
+    port: u32,
+    database_name: String,
+    username: String,
+    password: String,
 }
 
 impl DatabaseConfig {
-	fn new() -> Self{
-		let path = r".\config.json".to_string();
+    fn new() -> Self {
+        let path = r".\config.json".to_string();
 
         let file = fs::File::open(path).expect("config.json DOES NOT EXIST");
         let reader = io::BufReader::new(file);
 
-        serde_json::de::from_reader(reader).expect("port, database, username, password were not all filled.")
-		
-	}
+        serde_json::de::from_reader(reader)
+            .expect("port, database, username, password were not all filled.")
+    }
     fn connection_url(&self) -> String {
-        format!{"postgresql://{}:{}@localhost:{}/{}",self.username, self.password, self.port, self.database_name}
+        format! {"postgresql://{}:{}@localhost:{}/{}",self.username, self.password, self.port, self.database_name}
     }
 }
 
-
 // url format
 //postgresql://postgres:pass@localhost[:port][/database][?param1=val1[[&param2=val2]...]]
-const DB_ACCESS : &str= "postgresql://postgres:pass@localhost/nyaa";
+const DB_ACCESS: &str = "postgresql://postgres:pass@localhost/nyaa";
 
-pub fn start_sync() -> Result<Connection, postgres::Error>{
-    let url : &'static str = DB_ACCESS;
-    let url : String = DatabaseConfig::new().connection_url();
+pub fn start_sync() -> Result<Connection, postgres::Error> {
+    let url: &'static str = DB_ACCESS;
+    let url: String = DatabaseConfig::new().connection_url();
     Connection::connect(url, TlsMode::None)
 }
 
-
 pub fn start_async(rx: mpsc::Receiver<DatabaseUpsert>) {
     let db_url = DatabaseConfig::new().connection_url();
-    
+
     let database =
         tokio_postgres::connect(&db_url, NoTls)
 
@@ -139,44 +136,41 @@ pub fn start_async(rx: mpsc::Receiver<DatabaseUpsert>) {
 
             });
 
-    let fut = 
-        database
-            // Now we can check that we got back the same string we sent over.
-            .map(|res| {
-                println!{"the database has been dropped {:?}", res}
-            })
-            // And report any errors that happened.
-            .map_err(|e| {
-                eprintln!("database future error: {} :: ", e);
-            });
+    let fut = database
+        // Now we can check that we got back the same string we sent over.
+        .map(|res| {
+            println! {"the database has been dropped {:?}", res}
+        })
+        // And report any errors that happened.
+        .map_err(|e| {
+            eprintln!("database future error: {} :: ", e);
+        });
 
     tokio::spawn(fut);
-
 }
 
-
-pub enum DatabaseUpsert{
+pub enum DatabaseUpsert {
     Data(GenericData),
-    Error((Arc<String>, ErrorType, i64))
+    Error((Arc<String>, ErrorType, i64)),
 }
 
-pub enum ErrorType{
+pub enum ErrorType {
     InvalidAnnounce,
-    InvalidScrape
+    InvalidScrape,
 }
 
-impl <'a> ErrorType {
+impl<'a> ErrorType {
     pub fn new(x: ErrorType, hash: Arc<String>, poll_time: i64) -> DatabaseUpsert {
-        match x{
+        match x {
             ErrorType::InvalidAnnounce => DatabaseUpsert::Error((hash, x, poll_time)),
-            ErrorType::InvalidScrape => DatabaseUpsert::Error((hash, x, poll_time))
+            ErrorType::InvalidScrape => DatabaseUpsert::Error((hash, x, poll_time)),
         }
     }
 
     fn to_str(&self) -> &'a str {
-        match self{
+        match self {
             InvalidAnnounce => "invalid announce",
-            InvalidScrape => "invalid scrape"
+            InvalidScrape => "invalid scrape",
         }
     }
 }

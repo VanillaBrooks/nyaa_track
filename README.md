@@ -81,3 +81,23 @@ or with compression:
 ## Storage
 
 By my estimations the tracker functioning at 10 requests / second is projected to store less than 2 GB / month of data. 
+
+
+## Async Await
+
+Before async await (future 0.1):
+
+```
+-------------------------------------------------------------------------------
+ Language            Files        Lines         Code     Comments       Blanks
+-------------------------------------------------------------------------------
+ JSON                    1            6            6            0            0
+ Markdown                1           83           83            0            0
+ Python                  2          226          179           16           31
+ Rust                   17         2519         1876          260          383
+ SQL                     2          131           89           11           31
+ TOML                    1           41           28            1           12
+-------------------------------------------------------------------------------
+ Total                  24         3006         2261          288          457
+-------------------------------------------------------------------------------
+```

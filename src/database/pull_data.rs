@@ -1,7 +1,6 @@
-use super::connection;
 use super::super::error::*;
 use super::super::read::AnnounceComponents;
-
+use super::connection;
 
 macro_rules! construct {
     ($type:ident) => {

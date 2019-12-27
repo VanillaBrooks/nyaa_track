@@ -1,26 +1,25 @@
-use hashbrown::HashMap;
 use super::super::error::*;
 use super::super::utils;
+use hashbrown::HashMap;
 use lazy_static::lazy_static;
 // expects string to be lowercase
 pub fn hex_to_char(input: &str) -> String {
     // let input = input.to_uppercase();
     let mut input_clone = String::with_capacity(20);
 
-    lazy_static!{
-        static ref HEX : HashMap<String, String> = _hex_to_char();
+    lazy_static! {
+        static ref HEX: HashMap<String, String> = _hex_to_char();
         static ref PERCENT_ENCODE: HashMap<String, String> = reserved_characters();
-        static ref INDEXES :  Vec<usize> = (0..40).step_by(2).collect();
+        static ref INDEXES: Vec<usize> = (0..40).step_by(2).collect();
     }
 
-
-    for i in INDEXES.iter(){
-        let chars = input.get(*i..*i+2).unwrap();
+    for i in INDEXES.iter() {
+        let chars = input.get(*i..*i + 2).unwrap();
         // println!{"chars are {}", chars}
 
         match HEX.get(chars) {
             // the two character combination matches something in HEX
-            Some(x) => { 
+            Some(x) => {
                 // println!{"HEX encoding found for character {}", x}
                 //get escape character
                 match PERCENT_ENCODE.get(x) {
@@ -28,14 +27,14 @@ pub fn hex_to_char(input: &str) -> String {
                     Some(escape_char) => {
                         // println!{"escape character found {}", escape_char}
                         input_clone.push_str(&escape_char)
-                    },
+                    }
                     // no escaped version, we can push the original
                     None => {
                         // println!{"no escape character found for {}",x};
                         input_clone.push_str(x);
                     }
                 }
-            },
+            }
             // The HEX combination does not mean anything, push %<chars>
             None => {
                 // println!{"no HEX conversion for that character"}
@@ -46,7 +45,7 @@ pub fn hex_to_char(input: &str) -> String {
         // dbg!{&input_clone};
     }
 
-    return input_clone
+    return input_clone;
 }
 fn _hex_to_char() -> HashMap<String, String> {
     let mut chars: Vec<&str> = "! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~".split_ascii_whitespace().collect();
@@ -54,11 +53,10 @@ fn _hex_to_char() -> HashMap<String, String> {
     let mut hex: Vec<String> = Vec::new();
     chars.insert(0, " ");
 
-    for i in 2..8{
+    for i in 2..8 {
         // let mut new : Vec<String> = Vec::new();
-        
-        for j in (i*10)..((i+1)*10){
 
+        for j in (i * 10)..((i + 1) * 10) {
             hex.push(j.to_string());
         }
         for j in 0..6 {
@@ -69,24 +67,29 @@ fn _hex_to_char() -> HashMap<String, String> {
     }
     let mut hm: HashMap<String, String> = HashMap::new();
 
-    for i in 0..chars.len(){
-        hm.insert(hex[i].clone(),chars[i].to_string().clone());
-    }    
-    
-    return hm
+    for i in 0..chars.len() {
+        hm.insert(hex[i].clone(), chars[i].to_string().clone());
+    }
+
+    return hm;
 }
 
 fn reserved_characters() -> HashMap<String, String> {
-    let mut keys: Vec<&str>= "! \" # $ % & ' ( ) * + , / : ; = ? @ [ ] < > - . ^ _ ` { | } ~".split_ascii_whitespace().collect();
-    let mut values: Vec<&str> = "%20 %21 %22 %23 %24 %25 %26 %27 %28 %29 %2A \
-    %2B %2C %2F %3A %3B %3D %3F %40 %5B %5D %3C %3E %2D %2E %5E %5F %60 %7B %7C %7D %7E".split_ascii_whitespace().collect();
+    let mut keys: Vec<&str> = "! \" # $ % & ' ( ) * + , / : ; = ? @ [ ] < > - . ^ _ ` { | } ~"
+        .split_ascii_whitespace()
+        .collect();
+    let mut values: Vec<&str> =
+        "%20 %21 %22 %23 %24 %25 %26 %27 %28 %29 %2A \
+         %2B %2C %2F %3A %3B %3D %3F %40 %5B %5D %3C %3E %2D %2E %5E %5F %60 %7B %7C %7D %7E"
+            .split_ascii_whitespace()
+            .collect();
     keys.insert(0, " ");
 
     let mut hm: HashMap<String, String> = HashMap::new();
-    for _ in 0..keys.len(){
+    for _ in 0..keys.len() {
         hm.insert(
-            keys.remove(0).to_string(), 
-            values.remove(0).to_string().to_ascii_lowercase()
+            keys.remove(0).to_string(),
+            values.remove(0).to_string().to_ascii_lowercase(),
         );
     }
     return hm;
@@ -94,27 +97,33 @@ fn reserved_characters() -> HashMap<String, String> {
 
 #[derive(Debug)]
 pub struct AnnounceUrl {
-	info_hash: String,
-	peer_id: String,
-	port: u32,
-	uploaded: u32,
-	downloaded: u32,
-	numwant: u32,
-	compact: u32
+    info_hash: String,
+    peer_id: String,
+    port: u32,
+    uploaded: u32,
+    downloaded: u32,
+    numwant: u32,
+    compact: u32,
 }
-
 
 impl AnnounceUrl {
     pub fn new(info_hash: String, peer_id: String) -> AnnounceUrl {
-        let url_hash     = hex_to_char(&info_hash);
+        let url_hash = hex_to_char(&info_hash);
         let peer_id_hash = hex_to_char(&peer_id);
-        AnnounceUrl{info_hash: url_hash, peer_id: peer_id_hash, port: 9932, uploaded:0, downloaded:0,numwant:20,compact: 1}
+        AnnounceUrl {
+            info_hash: url_hash,
+            peer_id: peer_id_hash,
+            port: 9932,
+            uploaded: 0,
+            downloaded: 0,
+            numwant: 20,
+            compact: 1,
+        }
     }
 
     // build the url format that is required
     // ....../announce?info_hash=......&peer_id=......& etc
     pub fn serialize(&self, base_announce: &str) -> String {
-
         let mut s = String::with_capacity(50);
         s.push_str(&base_announce);
         s.push_str("?");
@@ -127,15 +136,15 @@ impl AnnounceUrl {
         Self::_seialze_helper(&mut s, "numwant", &self.numwant.to_string());
         Self::_seialze_helper(&mut s, "compact", &self.compact.to_string());
 
-        println!{"{}", s}
+        println! {"{}", s}
         return s;
     }
 
     fn _seialze_helper(base: &mut String, cat: &str, var: &String) {
-        if base.len() != 0{
+        if base.len() != 0 {
             base.push_str("&");
         }
-        
+
         base.push_str(cat);
         base.push_str("=");
         base.push_str(&var);
@@ -144,25 +153,29 @@ impl AnnounceUrl {
 
 #[derive(Debug)]
 pub struct ScrapeUrl {
-    pub hash: String
+    pub hash: String,
 }
 impl ScrapeUrl {
     pub fn new(hash: &str) -> ScrapeUrl {
         let url_hash = hex_to_char(hash);
-        ScrapeUrl{hash: url_hash}
+        ScrapeUrl { hash: url_hash }
     }
     pub fn announce_to_scrape(&self, ann_url: &str) -> Result<String, Error> {
-        let mut base = String::with_capacity(40 + 40*1);
-        let no_announce_url = utils::content_before_last_slash(&ann_url)?;              //TODO: LOG the announce url we come up with here (could be problematic)
+        let mut base = String::with_capacity(40 + 40 * 1);
+        let no_announce_url = utils::content_before_last_slash(&ann_url)?; //TODO: LOG the announce url we come up with here (could be problematic)
         base.push_str(&no_announce_url);
         base.push_str("scrape?");
 
         base.push_str("info_hash=");
         base.push_str(&self.hash);
 
-        match base.get(0..base.len()-1) {
+        match base.get(0..base.len() - 1) {
             Some(x) => return Ok(base.to_string()),
-            None => return Err(Error::SliceError("slicing url could not be done. this should not happen".to_string())) //TODO: Log the error
+            None => {
+                return Err(Error::SliceError(
+                    "slicing url could not be done. this should not happen".to_string(),
+                ))
+            } //TODO: Log the error
         }
     }
 }
