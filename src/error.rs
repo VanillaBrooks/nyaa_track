@@ -1,6 +1,6 @@
-use postgres;
+use super::read::{AnnounceComponents, Torrent};
 use http;
-use super::read::{Torrent, AnnounceComponents};
+use postgres;
 
 // from_type: Type that will be converted away from
 // to_type: Destination enum that we are converting to
@@ -10,14 +10,14 @@ macro_rules! impl_from {
     // catch to expand to a function-like enum
     (empty: $from_type:ident, $to_type:ty, $subtype:expr) => {
         impl_from!(full: $from_type, $to_type, $subtype, exp_empty)
-    };// will expand to call impl_from!(exp_empty: ...)  ^^^^^^^
+    }; // will expand to call impl_from!(exp_empty: ...)  ^^^^^^^
 
     // catch for C-like enums
     ($from_type:ident, $to_type:ty, $subtype:expr) => {
         impl_from!(full: $from_type, $to_type, $subtype, exp_full)
-    };// will expand to call impl_from!(exp_full: ...)   ^^^^^^^
+    }; // will expand to call impl_from!(exp_full: ...)   ^^^^^^^
 
-    // this branch will be called always. interior macro will expand 
+    // this branch will be called always. interior macro will expand
     // depending on if the implementing type expects a C-link enum or not
     (full: $from_type:ident, $to_type:ty, $subtype:expr, $expansion:ident) => {
         impl From<$from_type> for $to_type {
@@ -39,51 +39,50 @@ macro_rules! impl_from {
     };
 }
 
-
 #[derive(Debug)]
-pub enum Error{
-	IO(std::io::Error),
-	Reqwest(reqwest::Error),
-	Rss(RssErrors),
-	UrlError,
-	Torrent(TorrentErrors),
-	Announce(AnnounceErrors),
-	SliceError(String),
-	Postgres(postgres::error::Error),
-	HTTP(HTTPErrors),
-	ShouldNeverHappen(String),
-	Futures(FuturesErrors)
+pub enum Error {
+    IO(std::io::Error),
+    Reqwest(reqwest::Error),
+    Rss(RssErrors),
+    UrlError,
+    Torrent(TorrentErrors),
+    Announce(AnnounceErrors),
+    SliceError(String),
+    Postgres(postgres::error::Error),
+    HTTP(HTTPErrors),
+    ShouldNeverHappen(String),
+    Futures(FuturesErrors),
 }
 
-impl From<reqwest::Error> for Error{
-	fn from(error: reqwest::Error) -> Error{
-		return Error::Reqwest(error)
-	}
+impl From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Error {
+        Error::Reqwest(error)
+    }
 }
-impl From<std::io::Error> for Error{
-	fn from(error: std::io::Error) -> Error{
-		return Error::IO(error)
-	}
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Error {
+        Error::IO(error)
+    }
 }
 impl From<rss::Error> for Error {
-	fn from(error: rss::Error) -> Error{
-		return Error::Rss(RssErrors::RawRssError(error))
-	}
+    fn from(error: rss::Error) -> Error {
+        Error::Rss(RssErrors::RawRssError(error))
+    }
 }
 impl From<serde_bencode::Error> for Error {
-	fn from(error: serde_bencode::Error) ->Error {
-		return Error::Torrent(TorrentErrors::SerdeError(error))
-	}
+    fn from(error: serde_bencode::Error) -> Error {
+        Error::Torrent(TorrentErrors::SerdeError(error))
+    }
 }
 impl From<serde_urlencoded::ser::Error> for Error {
-	fn from(error: serde_urlencoded::ser::Error) -> Error {
-		return Error::Announce(AnnounceErrors::SerdeError(error))
-	}
+    fn from(error: serde_urlencoded::ser::Error) -> Error {
+        Error::Announce(AnnounceErrors::SerdeError(error))
+    }
 }
 impl From<postgres::error::Error> for Error {
-	fn from(error: postgres::error::Error) -> Error {
-		return Error::Postgres(error)
-	}
+    fn from(error: postgres::error::Error) -> Error {
+        Error::Postgres(error)
+    }
 }
 impl From<hyper::Error> for Error {
     fn from(err: hyper::Error) -> Error {
@@ -91,50 +90,57 @@ impl From<hyper::Error> for Error {
     }
 }
 impl From<http::uri::InvalidUri> for Error {
-	fn from(error: http::uri::InvalidUri) -> Error {
-		return Error::HTTP(HTTPErrors::Uri(error))
-	}
+    fn from(error: http::uri::InvalidUri) -> Error {
+        Error::HTTP(HTTPErrors::Uri(error))
+    }
 }
-impl From<futures::sync::mpsc::TrySendError<Torrent>> for Error {
-	fn from(error: futures::sync::mpsc::TrySendError<Torrent>) -> Self {
-		Error::Futures(FuturesErrors::TrySendError)
-	}
+impl From<futures::channel::mpsc::TrySendError<Torrent>> for Error {
+    fn from(_error: futures::channel::mpsc::TrySendError<Torrent>) -> Self {
+        Error::Futures(FuturesErrors::TrySendError)
+    }
 }
-impl From<futures::sync::mpsc::TrySendError<AnnounceComponents>> for Error {
-	fn from(error: futures::sync::mpsc::TrySendError<AnnounceComponents>) -> Self {
-		Error::Futures(FuturesErrors::TrySendError)
-	}
+impl From<futures::channel::mpsc::TrySendError<AnnounceComponents>> for Error {
+    fn from(_error: futures::channel::mpsc::TrySendError<AnnounceComponents>) -> Self {
+        Error::Futures(FuturesErrors::TrySendError)
+    }
 }
+impl From<futures::channel::mpsc::SendError> for Error {
+    fn from(_error: futures::channel::mpsc::SendError) -> Self {
+        Error::Futures(FuturesErrors::SendError)
+    }
+}
+
 #[derive(Debug)]
 pub enum HTTPErrors {
-	Hyper(hyper::Error),
-	Uri(http::uri::InvalidUri),
-	ParseError,
-	InvalidData
+    Hyper(hyper::Error),
+    Uri(http::uri::InvalidUri),
+    ParseError,
+    InvalidData,
 }
 #[derive(Debug)]
-pub enum AnnounceErrors{
-	SerdeError(serde_urlencoded::ser::Error),
-	AnnounceUrlNone,
-	AnnounceUrlError(String),
-	AnnounceNotReady(i64)
+pub enum AnnounceErrors {
+    SerdeError(serde_urlencoded::ser::Error),
+    AnnounceUrlNone,
+    AnnounceUrlError(String),
+    AnnounceNotReady(i64),
 }
 
 #[derive(Debug)]
 pub enum RssErrors {
-	RawRssError(rss::Error),
-	InfoHashFetch(&'static str),
-	RssUrlInvalid,
-	CouldNotReadRss
+    RawRssError(rss::Error),
+    InfoHashFetch(&'static str),
+    RssUrlInvalid,
+    CouldNotReadRss,
 }
 #[derive(Debug)]
 pub enum TorrentErrors {
-	NoAnnounceUrl(String),
-	SerdeError(serde_bencode::Error),
-	MissingName,
-	InfoHash
+    NoAnnounceUrl(String),
+    SerdeError(serde_bencode::Error),
+    MissingName,
+    InfoHash,
 }
 #[derive(Debug)]
 pub enum FuturesErrors {
-	TrySendError
+    TrySendError,
+    SendError,
 }

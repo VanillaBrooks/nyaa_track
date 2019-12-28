@@ -1,71 +1,54 @@
 // use super::super::read::{announce_components, announce_result};
-use super::super::read::{AnnounceComponents, GenericData};
 use super::super::database::connection;
+use super::super::read::AnnounceComponents;
 
-use futures::sync::mpsc;
-use futures::{Future, Stream};
+use futures::channel::mpsc;
+use futures::StreamExt;
 
-
-use std::sync::Arc;
-use parking_lot::RwLock;
 use hashbrown::HashSet;
-
-use std::time::Duration;
-
-use tokio::prelude::*;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// starts task for cycling through scrapes
 /// recieves announce component and spawns a request after a timer
 /// That spawned task will pass ownership of itself back to this task and be re-spawned
 pub fn start_scrape_cycle_task(
-	rx_to_scrape: mpsc::Receiver<AnnounceComponents>,
-	tx_to_scrape: mpsc::Sender<AnnounceComponents>,
-	tx_generic: mpsc::Sender<connection::DatabaseUpsert>
-	) -> () {
+    mut rx_to_scrape: mpsc::Receiver<AnnounceComponents>,
+    tx_to_scrape: mpsc::Sender<AnnounceComponents>,
+    tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
+) {
+    dbg! {"starting scrape task"};
 
-	dbg!{"starting scrape task"};
+    let fut = async move {
+        while let Some(ann) = rx_to_scrape.next().await {
+            ann.get(tx_to_scrape.clone(), tx_generic.clone()).await;
+        }
+    };
 
-	let allow_new_scrapes = 
-		rx_to_scrape.throttle(Duration::from_millis(200)).for_each(move |ann|{
-
-			ann.get(tx_to_scrape.clone(), tx_generic.clone());
-
-			Ok(())
-		})
-		.map_err(|e| println!{"ERROR MAIN SCRAPE {:?}",e});
-		
-		
-	tokio::spawn(allow_new_scrapes);
+    tokio::spawn(fut);
 }
 
+pub async fn filter_new_announces<T: Send + Sync + std::hash::BuildHasher + 'static>(
+    mut rx_filter: mpsc::Receiver<AnnounceComponents>,
+    tx_to_scrape: mpsc::Sender<AnnounceComponents>,
+    tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
+    previous_lock: Arc<RwLock<HashSet<String, T>>>,
+) {
+    dbg! {"starting filter task"};
 
-pub fn filter_new_announces(
-	rx_filter: mpsc::Receiver<AnnounceComponents>,
-	tx_to_scrape: mpsc::Sender<AnnounceComponents>,
-	tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
-	previous_lock: Arc<RwLock<HashSet<String>>>
-	) -> () {
-	
-	dbg!{"starting filter task"};
+    let fut = async move {
+        while let Some(ann) = rx_filter.next().await {
+            // this is blocked to prevent .await lifetime issues
+            {
+                let mut previous = previous_lock.write();
+                previous.insert(ann.info_hash.to_string());
+            }
 
-	let filter = 
-		rx_filter.for_each(move |ann| {
-			let hash_ptr = Arc::into_raw(ann.info_hash.clone());
-			let hash = unsafe{(*hash_ptr).clone()};
+            ann.get(tx_to_scrape.clone(), tx_generic.clone()).await;
+        }
+    };
 
-			{
-				println!{"writing new value {:?}", &hash}
-				let mut previous = previous_lock.write();
-				previous.insert(hash);
-			}
+    dbg! {"returning from filteR_new_announces. this should not happen"};
 
-			unsafe{ Arc::from_raw(hash_ptr) };
-
-			ann.get(tx_to_scrape.clone(), tx_generic.clone());
-
-			Ok(())
-		})
-		.map_err(|e| println!{"ERROR MAIN FILTERING {:?}",e});
-
-	tokio::spawn(filter);
+    tokio::spawn(fut);
 }
