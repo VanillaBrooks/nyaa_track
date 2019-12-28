@@ -19,10 +19,9 @@ use announce_components::AnnounceComponents;
 use torrent::Torrent;
 // use announce_result::AnnounceResult;
 
-pub fn https_connection(thread_count: usize) -> Client<HttpsConnector<HttpConnector>> {
+pub fn https_connection() -> Client<HttpsConnector<HttpConnector>> {
     let https = HttpsConnector::new();
-    let client = Client::builder().build::<_, hyper::Body>(https);
-    client
+    Client::builder().build::<_, hyper::Body>(https)
 }
 
 // TODO: configure client pooling
@@ -32,14 +31,8 @@ pub struct Downloader {
 }
 
 impl Downloader {
-    pub fn new() -> Downloader {
-        let client_config = https_connection(4);
-        Downloader {
-            client: client_config,
-        }
-    }
     pub fn from_client(client: Client<HttpsConnector<HttpConnector>>) -> Self {
-        Downloader {client }
+        Downloader { client }
     }
     pub async fn download(
         &self,
@@ -65,12 +58,20 @@ impl Downloader {
             }
             Err(e) => Err(e),
         }
+    }
+}
 
+impl Default for Downloader {
+    fn default() -> Self {
+        let client_config = https_connection();
+        Downloader {
+            client: client_config,
+        }
     }
 }
 
 // generate a .torrent file for the data
-pub fn write_torrent_to_file(data: &Vec<u8>, save_name: &str) -> Result<String, Error> {
+pub fn write_torrent_to_file(data: &[u8], save_name: &str) -> Result<String, Error> {
     //TODO: async file write here
     let mut base = r"C:\Users\Brooks\github\nyaa_tracker\torrents\".to_string();
     base.push_str(save_name);
@@ -83,10 +84,10 @@ pub fn write_torrent_to_file(data: &Vec<u8>, save_name: &str) -> Result<String, 
 }
 
 // BASE SAVE PATH
-pub fn content_after_last_slash<'a>(url: &'a str) -> Result<&'a str, Error> {
+pub fn content_after_last_slash(url: &str) -> Result<&str, Error> {
     let mut last = 0;
     for i in 0..url.len() - 1 {
-        let k = match url.get(i..i + 1) {
+        let k = match url.get(i..=i) {
             Some(data) => data,
             None => return Err(Error::SliceError("Could not slice the string".to_string())),
         };
@@ -103,11 +104,11 @@ pub fn content_after_last_slash<'a>(url: &'a str) -> Result<&'a str, Error> {
     }
 }
 
-pub fn content_before_last_slash<'a>(url: &'a str) -> Result<&'a str, Error> {
+pub fn content_before_last_slash(url: &str) -> Result<&str, Error> {
     let mut last = 0;
 
     for i in 0..url.len() - 1 {
-        let k = match url.get(i..i + 1) {
+        let k = match url.get(i..=i) {
             Some(data) => data,
             None => return Err(Error::SliceError("Could not slice the string".to_string())),
         };
@@ -116,7 +117,7 @@ pub fn content_before_last_slash<'a>(url: &'a str) -> Result<&'a str, Error> {
         }
     }
 
-    match url.get(0..last + 1) {
+    match url.get(0..=last) {
         Some(slice) => Ok(slice),
         None => Err(Error::SliceError(
             "did not contain a slash. you fucked up somewhere".to_string(),
@@ -125,8 +126,8 @@ pub fn content_before_last_slash<'a>(url: &'a str) -> Result<&'a str, Error> {
 }
 
 // asssumes it is only filename and .torrent with no extra directory info
-pub fn content_before_dot_torrent<'a>(input: &'a str) -> Result<&'a str, Error> {
-    match input.find(".") {
+pub fn content_before_dot_torrent(input: &str) -> Result<&str, Error> {
+    match input.find('.') {
         Some(index) => match input.get(0..index) {
             Some(x) => Ok(x),
             None => Err(Error::SliceError("indexes of slice invalud".to_string())),
@@ -202,12 +203,10 @@ pub fn torrents_with_hashes(directory: &str) -> Vec<Torrent> {
             let a = content_after_last_slash(&x).unwrap();
             let b = content_before_dot_torrent(&a).unwrap();
 
-            match y {
-                Ok(mut torrent) => {
-                    torrent.set_info_hash(b);
-                    results.push(torrent);
-                }
-                Err(_) => (),
+
+            if let Ok(mut torrent) = y {
+                torrent.set_info_hash(b);
+                results.push(torrent)
             }
         });
 
@@ -224,11 +223,7 @@ pub fn nyaa_si_announces_from_files(directory: &str) -> Vec<AnnounceComponents> 
             // make sure it has the url we are looking for
             match &x.announce {
                 Some(ann_url) => {
-                    if ann_url.contains("http") && ann_url.contains("nyaa") {
-                        true
-                    } else {
-                        false
-                    }
+                    ann_url.contains("http") && ann_url.contains("nyaa")
                 }
                 None => false,
             }
@@ -251,13 +246,9 @@ pub fn filter_nyaa_announces(data: Vec<AnnounceComponents>) -> Vec<AnnounceCompo
     data.into_iter()
         .filter(|x| {
             // make sure it has the url we are looking for
-
-            if x.url.contains("http") && x.url.contains("nyaa") {
-                true
-            } else {
-                false
-            }
+            x.url.contains("http") && x.url.contains("nyaa")
         })
+
         .collect::<Vec<_>>()
 }
 
@@ -270,10 +261,10 @@ pub fn info_hash_set(directory: &str) -> HashSet<String> {
             hash_set.insert(x.info_hash().unwrap());
         });
 
-    return hash_set;
+    hash_set
 }
 
-pub fn check_hashes(dir_to_read: &str) -> () {
+pub fn check_hashes(dir_to_read: &str) {
     //Vec<(String, Torrent)>{
 
     let dir: Vec<_> = serialize_all_torrents(dir_to_read);
@@ -301,8 +292,8 @@ pub fn check_hashes(dir_to_read: &str) -> () {
     }
 
     println! {"good hashes:\t {}\tbad hashes:\t {}", good, bad.len()}
-    if bad.len() > 0 {
-        dbg! {bad};
+    if !bad.is_empty() {
+        dbg!{bad};
     }
 }
 

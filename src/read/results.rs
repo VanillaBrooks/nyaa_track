@@ -11,20 +11,20 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct AnnounceResult<'a> {
-    pub info_hash: &'a String,
-    pub announce_url: &'a String,
-    pub title: &'a String,
+    pub info_hash: &'a str,
+    pub announce_url: &'a str,
+    pub title: &'a str,
     pub poll_time: i64,
-    pub creation_date: &'a i64,
+    pub creation_date: i64,
     pub data: AnnounceData,
 }
 impl<'a> AnnounceResult<'a> {
     pub fn new_bytes(
-        input_bytes: &Vec<u8>,
-        hash: &'a String,
-        url: &'a String,
-        title: &'a String,
-        date: &'a i64,
+        input_bytes: &[u8],
+        hash: &'a str,
+        url: &'a str,
+        title: &'a str,
+        date: i64,
     ) -> Result<AnnounceResult<'a>, Error> {
         let data = AnnounceData::new_bytes(&input_bytes)?;
         let s = AnnounceResult {
@@ -53,28 +53,28 @@ pub struct AnnounceData {
 }
 
 impl AnnounceData {
-    pub fn new_bytes(input_bytes: &Vec<u8>) -> Result<AnnounceData, Error> {
+    pub fn new_bytes(input_bytes: &[u8]) -> Result<AnnounceData, Error> {
         let ann = de::from_bytes::<AnnounceData>(&input_bytes)?;
         Ok(ann)
     }
 }
 
 pub struct ScrapeResult<'a> {
-    pub info_hash: &'a String,
-    pub announce_url: &'a String,
-    pub title: &'a String,
+    pub info_hash: &'a str,
+    pub announce_url: &'a str,
+    pub title: &'a str,
     pub poll_time: i64,
-    pub creation_date: &'a i64,
+    pub creation_date: i64,
     pub data: ScrapeData,
 }
 
 impl<'a> ScrapeResult<'a> {
     pub fn new_bytes(
-        input_bytes: &Vec<u8>,
-        hash: &'a String,
-        url: &'a String,
-        title: &'a String,
-        date: &'a i64,
+        input_bytes: &[u8],
+        hash: &'a str,
+        url: &'a str,
+        title: &'a str,
+        date: i64,
     ) -> Result<ScrapeResult<'a>, Error> {
         let data = ScrapeData::new_bytes(&input_bytes)?;
         let s = ScrapeResult {
@@ -102,7 +102,7 @@ pub struct File {
 }
 
 impl ScrapeData {
-    pub fn new_bytes(input_bytes: &Vec<u8>) -> Result<ScrapeData, Error> {
+    pub fn new_bytes(input_bytes: &[u8]) -> Result<ScrapeData, Error> {
         let ann = de::from_bytes::<ScrapeData>(&input_bytes)?;
         Ok(ann)
     }

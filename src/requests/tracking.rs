@@ -1,6 +1,6 @@
 // use super::super::read::{announce_components, announce_result};
 use super::super::database::connection;
-use super::super::read::{AnnounceComponents};
+use super::super::read::AnnounceComponents;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -8,7 +8,6 @@ use futures::StreamExt;
 use hashbrown::HashSet;
 use parking_lot::RwLock;
 use std::sync::Arc;
-use super::super::error;
 
 /// starts task for cycling through scrapes
 /// recieves announce component and spawns a request after a timer
@@ -17,7 +16,7 @@ pub fn start_scrape_cycle_task(
     mut rx_to_scrape: mpsc::Receiver<AnnounceComponents>,
     tx_to_scrape: mpsc::Sender<AnnounceComponents>,
     tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
-){
+) {
     dbg! {"starting scrape task"};
 
     let fut = async move {
@@ -29,31 +28,27 @@ pub fn start_scrape_cycle_task(
     tokio::spawn(fut);
 }
 
-pub async fn filter_new_announces(
+pub async fn filter_new_announces<T: Send + Sync + std::hash::BuildHasher + 'static>( 
     mut rx_filter: mpsc::Receiver<AnnounceComponents>,
     tx_to_scrape: mpsc::Sender<AnnounceComponents>,
     tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
-    previous_lock: Arc<RwLock<HashSet<String>>>,
-) -> Result<(), error::Error> {
+    previous_lock: Arc<RwLock<HashSet<String, T>>>,
+) {
     dbg! {"starting filter task"};
 
+    let fut = async move {
+        while let Some(ann) = rx_filter.next().await {
+            // this is blocked to prevent .await lifetime issues
+            {
+                let mut previous = previous_lock.write();
+                previous.insert(ann.info_hash.to_string());
+            }
 
-    while let Some(ann) = rx_filter.next().await {
-        let hash_ptr = Arc::into_raw(ann.info_hash.clone());
-        let hash = unsafe { (*hash_ptr).clone() };
-
-        {
-            println! {"writing new value {:?}", &hash}
-            let mut previous = previous_lock.write();
-            previous.insert(hash);
+            ann.get(tx_to_scrape.clone(), tx_generic.clone()).await;
         }
+    };
 
-        unsafe { Arc::from_raw(hash_ptr) };
+    dbg! {"returning from filteR_new_announces. this should not happen"};
 
-        ann.get(tx_to_scrape.clone(), tx_generic.clone()).await;
-    }
-
-    dbg!{"returning from filteR_new_announces. this should not happen"};
-
-    Ok(())
+    tokio::spawn(fut);
 }

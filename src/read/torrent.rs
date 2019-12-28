@@ -160,7 +160,7 @@ pub struct Info {
 }
 
 impl Info {
-    pub fn new_bytes(bytes: &Vec<u8>) -> Result<Info, serde_bencode::Error> {
+    pub fn new_bytes(bytes: &[u8]) -> Result<Info, serde_bencode::Error> {
         de::from_bytes::<Info>(&bytes)
     }
     pub fn set_info_hash(&mut self, input: &str) {
@@ -317,7 +317,7 @@ pub struct Torrent {
 
 //TODO: Fix use lifetimes and return reference to hash instead
 impl Torrent {
-    pub fn new_bytes(input_bytes: &Vec<u8>) -> Result<Torrent, Error> {
+    pub fn new_bytes(input_bytes: &[u8]) -> Result<Torrent, Error> {
         let torrent = de::from_bytes::<Torrent>(&input_bytes)?;
         Ok(torrent)
     }
@@ -331,7 +331,7 @@ impl Torrent {
 
     pub fn info_hash(&mut self) -> Result<String, std::io::Error> {
         match &self.info.info_hash {
-            Some(x) => return Ok(x.to_string()),
+            Some(x) => Ok(x.to_string()),
 
             None => {
                 let mut hasher = crypto::sha1::Sha1::new();
@@ -358,5 +358,5 @@ impl ToBencode for Torrent {
 pub fn sha1(bytes: &[u8]) -> String {
     let mut hasher = crypto::sha1::Sha1::new();
     hasher.input(&bytes);
-    return hasher.result_str();
+    hasher.result_str()
 }

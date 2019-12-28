@@ -5,8 +5,8 @@ use super::connection;
 pub fn database_announce_components() -> Result<Vec<AnnounceComponents>, Error> {
     let mut client = connection::start_sync()?;
     // let pull = conn.prepare("SELECT info_hash, creation_date, title, announce_url FROM info WHERE announce_url='http://nyaa.tracker.wf:7777/announce'")?;
-    let pull =
-        client.prepare("SELECT info_hash, creation_date, title, announce_url FROM data_to_track")?;
+    let pull = client
+        .prepare("SELECT info_hash, creation_date, title, announce_url FROM data_to_track")?;
 
     let count = client.query("SELECT COUNT(*) FROM info", &[])?;
     let len: i64 = count.iter().nth(0).unwrap().get(0);

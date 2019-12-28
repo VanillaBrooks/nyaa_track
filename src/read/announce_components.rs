@@ -9,15 +9,9 @@ use futures::SinkExt;
 use std::sync::Arc;
 
 use hyper::client::{Client, HttpConnector};
-// use hyper::rt::{Future, Stream};
 use hyper_tls::HttpsConnector;
 
 use tokio::time::Delay;
-
-enum RequestType {
-    Announce((GenericData, i64)),
-    Scrape(GenericData),
-}
 
 #[derive(Debug, Clone)]
 pub struct AnnounceComponents {
@@ -72,7 +66,7 @@ impl<'a> AnnounceComponents {
                 title: Arc::new(title),
                 scrape_url,
                 announce_url,
-                client: utils::https_connection(4),
+                client: utils::https_connection(),
                 scrape_error_count: 0,
                 announce_error_count: 0,
                 incomplete_data: 0,
@@ -80,9 +74,7 @@ impl<'a> AnnounceComponents {
                 struct_initialization_time: current_epoch,
             })
         } else {
-            Err(Error::Torrent(TorrentErrors::NoAnnounceUrl(
-                hash.to_string(),
-            )))
+            Err(Error::Torrent(TorrentErrors::NoAnnounceUrl(hash)))
         }
     }
 
@@ -90,13 +82,13 @@ impl<'a> AnnounceComponents {
         self,
         tx_announce: mpsc::Sender<AnnounceComponents>,
         tx_database: mpsc::Sender<connection::DatabaseUpsert>,
-    ) -> () {
+    ) {
         //
 
         let next_epoch_announce = self.allow_announce();
 
         if self.scrape_errors_too_high() && self.announce_errors_too_high() {
-            () // kill the struct
+            // kill the struct
         }
         // too many scrape erros for how long the annoucer has existed
         else if self.scrape_errors_too_high() {
@@ -106,8 +98,8 @@ impl<'a> AnnounceComponents {
         // run a (potentially) delayed scrape
         else {
             let fut = async move {
-                // TODO: make sure generate delay is taking in the right args here. its looks suspicious
-                let delay = self.time_existance().generate_delay(1).await;
+                // create a delay between polls if the torrent is of less interest
+                self.time_existance().generate_delay(1).await;
                 self.run_scrape(tx_announce, tx_database).await
             };
 
@@ -124,7 +116,6 @@ impl<'a> AnnounceComponents {
         mut tx_announce: mpsc::Sender<AnnounceComponents>,
         mut tx_database: mpsc::Sender<connection::DatabaseUpsert>,
     ) {
-
         println! {"STARTING ANNOUNCE"}
 
         let fut = async move {
@@ -137,7 +128,7 @@ impl<'a> AnnounceComponents {
 
                         self.next_announce = new_interval + utils::get_unix_time();
 
-                        if self.allow_future_scrapes(&data.complete) {
+                        if self.allow_future_scrapes(data.complete) {
                             tx_announce.send(self).await;
                         } else {
                             println! {"dropped item"}
@@ -146,7 +137,7 @@ impl<'a> AnnounceComponents {
                         let db_wrap = connection::DatabaseUpsert::Data(data);
                         tx_database.send(db_wrap).await;
                     }
-                    Err(error) => {
+                    Err(_error) => {
                         // // TODO: clean this horrific thing up
                         // match error.into_inner(){
                         //     Some(error) =>
@@ -184,7 +175,8 @@ impl<'a> AnnounceComponents {
             }
         };
 
-        let delay = utils::create_delay(delay).await;
+        // delay the fuure until it is ok to send an announce
+        utils::create_delay(delay).await;
         tokio::spawn(fut);
     }
 
@@ -192,7 +184,7 @@ impl<'a> AnnounceComponents {
         STARTER METHOD FOR SCRAPES
     */
     async fn run_scrape(
-        mut self,
+        self,
         mut tx_announce: mpsc::Sender<AnnounceComponents>,
         mut tx_database: mpsc::Sender<connection::DatabaseUpsert>,
     ) {
@@ -203,7 +195,7 @@ impl<'a> AnnounceComponents {
             if let Ok(res) = timeout_fut {
                 // check the contents of the actual scrape data
                 if let Ok(scrape_data) = res {
-                    if self.allow_future_scrapes(&scrape_data.complete) {
+                    if self.allow_future_scrapes(scrape_data.complete) {
                         tx_announce.send(self).await;
                     } else {
                         println! {"dropped item"}
@@ -246,12 +238,12 @@ impl<'a> AnnounceComponents {
         if let Ok(scrape) = ScrapeData::new_bytes(&request_bytes) {
             // get the first value from the data
             // TODO: better api for this
-            if let Some(data) = scrape.files.values().into_iter().next() {
+            if let Some(data) = scrape.files.values().next() {
                 // package all data into one generic struct
                 let generic_data = GenericData::new(
                     self.info_hash.clone(),
                     self.url.clone(),
-                    self.creation_date.clone(),
+                    self.creation_date,
                     self.title.clone(),
                     data.downloaded,
                     data.complete,
@@ -294,7 +286,7 @@ impl<'a> AnnounceComponents {
             let gen_data = GenericData::new(
                 self.info_hash.clone(),
                 self.url.clone(),
-                self.creation_date.clone(),
+                self.creation_date,
                 self.title.clone(),
                 announce.downloaded,
                 announce.complete,
@@ -306,23 +298,16 @@ impl<'a> AnnounceComponents {
         }
     }
 
-    fn allow_future_scrapes(&self, seeders: &i64) -> bool {
+    fn allow_future_scrapes(&self, seeders: i64) -> bool {
         let days_alive = (utils::get_unix_time() - self.creation_date) / 86400;
 
         // older than 7 days, less than 100 active seeders we terminate tracking
-        if days_alive > 7 && *seeders < 100 {
-            false
-        } else {
-            true
-        }
+        !days_alive > 7 && seeders < 100
     }
 
     fn allow_announce(&self) -> i64 {
         let now = utils::get_unix_time();
-        // let diff = now - self.next_announce;
-        let diff = self.next_announce - now;
-
-        diff
+        self.next_announce - now
     }
 
     fn scrape_errors_too_high(&self) -> bool {
@@ -330,11 +315,7 @@ impl<'a> AnnounceComponents {
         let hours = (now - self.struct_initialization_time) / 3600;
         let hours = if hours == 0 { 1 } else { hours };
 
-        if (self.scrape_error_count / hours) >= 5 {
-            true
-        } else {
-            false
-        }
+        (self.scrape_error_count / hours) >= 5
     }
 
     fn announce_errors_too_high(&self) -> bool {
@@ -342,11 +323,7 @@ impl<'a> AnnounceComponents {
         let hours = (now - self.struct_initialization_time) / 3600;
         let hours = if hours == 0 { 1 } else { hours };
 
-        if (self.announce_error_count / hours) > 2 && self.announce_error_count > 10 {
-            true
-        } else {
-            false
-        }
+        (self.announce_error_count / hours) > 2 && self.announce_error_count > 10
     }
 
     // Time since the creation of the torrent file *NOT* when the struct was created

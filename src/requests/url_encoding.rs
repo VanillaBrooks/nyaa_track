@@ -41,7 +41,7 @@ pub fn hex_to_char(input: &str) -> String {
                 input_clone.push_str("%");
                 input_clone.push_str(chars);
             }
-        }
+        } 
         // dbg!{&input_clone};
     }
 
@@ -59,9 +59,9 @@ fn _hex_to_char() -> HashMap<String, String> {
         for j in (i * 10)..((i + 1) * 10) {
             hex.push(j.to_string());
         }
-        for j in 0..6 {
+        for character in &letters {
             let mut num = i.to_string();
-            num.push_str(letters[j]);
+            num.push_str(character);
             hex.push(num)
         }
     }
@@ -140,8 +140,8 @@ impl AnnounceUrl {
         s
     }
 
-    fn _seialze_helper(base: &mut String, cat: &str, var: &String) {
-        if base.len() != 0 {
+    fn _seialze_helper(base: &mut String, cat: &str, var: &str) {
+        if !base.is_empty() {
             base.push_str("&");
         }
 
@@ -161,7 +161,7 @@ impl ScrapeUrl {
         ScrapeUrl { hash: url_hash }
     }
     pub fn announce_to_scrape(&self, ann_url: &str) -> Result<String, Error> {
-        let mut base = String::with_capacity(40 + 40 * 1);
+        let mut base = String::with_capacity(80);
         let no_announce_url = utils::content_before_last_slash(&ann_url)?; //TODO: LOG the announce url we come up with here (could be problematic)
         base.push_str(&no_announce_url);
         base.push_str("scrape?");
@@ -171,11 +171,9 @@ impl ScrapeUrl {
 
         match base.get(0..base.len() - 1) {
             Some(_) => Ok(base.to_string()),
-            None => {
-                Err(Error::SliceError(
-                    "slicing url could not be done. this should not happen".to_string(),
-                ))
-            } //TODO: Log the error
+            None => Err(Error::SliceError(
+                "slicing url could not be done. this should not happen".to_string(),
+            )), //TODO: Log the error
         }
     }
 }

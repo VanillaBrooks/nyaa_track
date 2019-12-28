@@ -56,32 +56,32 @@ pub enum Error {
 
 impl From<reqwest::Error> for Error {
     fn from(error: reqwest::Error) -> Error {
-         Error::Reqwest(error)
+        Error::Reqwest(error)
     }
 }
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Error {
-         Error::IO(error)
+        Error::IO(error)
     }
 }
 impl From<rss::Error> for Error {
     fn from(error: rss::Error) -> Error {
-         Error::Rss(RssErrors::RawRssError(error))
+        Error::Rss(RssErrors::RawRssError(error))
     }
 }
 impl From<serde_bencode::Error> for Error {
     fn from(error: serde_bencode::Error) -> Error {
-         Error::Torrent(TorrentErrors::SerdeError(error))
+        Error::Torrent(TorrentErrors::SerdeError(error))
     }
 }
 impl From<serde_urlencoded::ser::Error> for Error {
     fn from(error: serde_urlencoded::ser::Error) -> Error {
-         Error::Announce(AnnounceErrors::SerdeError(error))
+        Error::Announce(AnnounceErrors::SerdeError(error))
     }
 }
 impl From<postgres::error::Error> for Error {
     fn from(error: postgres::error::Error) -> Error {
-         Error::Postgres(error)
+        Error::Postgres(error)
     }
 }
 impl From<hyper::Error> for Error {
@@ -91,21 +91,21 @@ impl From<hyper::Error> for Error {
 }
 impl From<http::uri::InvalidUri> for Error {
     fn from(error: http::uri::InvalidUri) -> Error {
-         Error::HTTP(HTTPErrors::Uri(error))
+        Error::HTTP(HTTPErrors::Uri(error))
     }
 }
 impl From<futures::channel::mpsc::TrySendError<Torrent>> for Error {
-    fn from(error: futures::channel::mpsc::TrySendError<Torrent>) -> Self {
+    fn from(_error: futures::channel::mpsc::TrySendError<Torrent>) -> Self {
         Error::Futures(FuturesErrors::TrySendError)
     }
 }
 impl From<futures::channel::mpsc::TrySendError<AnnounceComponents>> for Error {
-    fn from(error: futures::channel::mpsc::TrySendError<AnnounceComponents>) -> Self {
+    fn from(_error: futures::channel::mpsc::TrySendError<AnnounceComponents>) -> Self {
         Error::Futures(FuturesErrors::TrySendError)
     }
 }
 impl From<futures::channel::mpsc::SendError> for Error {
-    fn from(error: futures::channel::mpsc::SendError) -> Self {
+    fn from(_error: futures::channel::mpsc::SendError) -> Self {
         Error::Futures(FuturesErrors::SendError)
     }
 }
@@ -142,5 +142,5 @@ pub enum TorrentErrors {
 #[derive(Debug)]
 pub enum FuturesErrors {
     TrySendError,
-    SendError
+    SendError,
 }

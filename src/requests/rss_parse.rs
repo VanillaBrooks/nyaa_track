@@ -51,13 +51,12 @@ macro_rules! parse {
                         } else {
                             println! {"Error downloading torrent data"}
                         }
-
                     }
 
                     None => println! {"error with link"},
                 }
             }
-            Err(error) => {
+            Err(_error) => {
                 println! {"error with RSS item"};
             }
         }
@@ -71,9 +70,9 @@ macro_rules! parse {
 // download xml data from a url as well as their associated torrents
 // return a vector of structs required to make announcements
 // will only Error if the provided url is incorrect
-pub async fn get_xml(
+pub async fn get_xml<T: Send + Sync + std::hash::BuildHasher + 'static>(
     url: &str,
-    previous: Arc<RwLock<HashSet<String>>>,
+    previous: Arc<RwLock<HashSet<String, T>>>,
     tx_to_filter: mpsc::Sender<AnnounceComponents>,
 ) -> Result<(), Error> {
     // decide what hash-parsing function we will use for the given url
@@ -83,7 +82,7 @@ pub async fn get_xml(
         nyaa_pantsu_hash
     };
 
-    let client = utils::https_connection(10);
+    let client = utils::https_connection();
     let uri = url.parse().expect("rss url invalid");
 
     let res = client.get(uri).await?.into_body();
@@ -115,7 +114,7 @@ pub async fn get_xml(
 
     // std::fs::remove_file(path);
 
-    let dl = utils::Downloader::new();
+    let dl = utils::Downloader::default();
 
     for _ in 0..items.len() {
         let item = items.remove(0);
@@ -153,7 +152,7 @@ impl<'a> Timer<'a> {
 }
 
 // do this since ? does not work w/ Option<T>
-fn nyaa_si_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
+fn nyaa_si_hash(item: &rss::Item) -> Result<&str, Error> {
     let ext = item.extensions();
 
     match ext.get("nyaa") {
@@ -177,7 +176,7 @@ fn nyaa_si_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
     }
 }
 
-fn nyaa_pantsu_hash<'a>(item: &'a rss::Item) -> Result<&'a str, Error> {
+fn nyaa_pantsu_hash(item: &rss::Item) -> Result<&str, Error> {
     let link = item.link();
     match link {
         Some(data) => utils::content_after_last_slash(&data),
