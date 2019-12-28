@@ -1,5 +1,3 @@
-use postgres::{tls, Client};
-
 use futures::channel::mpsc;
 use futures::future::lazy;
 use futures::StreamExt;
@@ -14,7 +12,7 @@ use std::io;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize)]
-struct DatabaseConfig {
+pub(crate) struct DatabaseConfig {
     port: u32,
     database_name: String,
     username: String,
@@ -22,7 +20,7 @@ struct DatabaseConfig {
 }
 
 impl DatabaseConfig {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let path = r".\config.json".to_string();
 
         let file = fs::File::open(path).expect("config.json DOES NOT EXIST");
@@ -31,18 +29,13 @@ impl DatabaseConfig {
         serde_json::de::from_reader(reader)
             .expect("port, database, username, password were not all filled.")
     }
-    fn connection_url(&self) -> String {
+    pub(crate) fn connection_url(&self) -> String {
         format! {"postgresql://{}:{}@localhost:{}/{}",self.username, self.password, self.port, self.database_name}
     }
 }
 
 // url format
 //postgresql://postgres:pass@localhost[:port][/database][?param1=val1[[&param2=val2]...]]
-
-pub fn start_sync() -> Result<Client, postgres::Error> {
-    let url: String = DatabaseConfig::new().connection_url();
-    Client::connect(&url, tls::NoTls)
-}
 
 pub fn start_async(mut rx: mpsc::Receiver<DatabaseUpsert>) {
     let db_url = DatabaseConfig::new().connection_url();
