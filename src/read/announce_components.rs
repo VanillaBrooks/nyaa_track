@@ -11,8 +11,8 @@ use std::sync::Arc;
 use hyper::client::{Client, HttpConnector};
 use hyper_tls::HttpsConnector;
 
-use tokio::time::Delay;
 use super::super::traits::WontError;
+use tokio::time::Delay;
 
 #[derive(Debug, Clone)]
 pub struct AnnounceComponents {
@@ -130,13 +130,19 @@ impl<'a> AnnounceComponents {
                         self.next_announce = new_interval + utils::get_unix_time();
 
                         if self.allow_future_scrapes(data.complete) {
-                            tx_announce.send(self).await.wont_error(&format!{"line: {}", line!{}});
+                            tx_announce
+                                .send(self)
+                                .await
+                                .wont_error(&format! {"line: {}", line!{}});
                         } else {
                             println! {"dropped item"}
                         }
 
                         let db_wrap = connection::DatabaseUpsert::Data(data);
-                        tx_database.send(db_wrap).await.wont_error(&format!{"line: {}", line!{}});
+                        tx_database
+                            .send(db_wrap)
+                            .await
+                            .wont_error(&format! {"line: {}", line!{}});
                     }
                     Err(_error) => {
                         // // TODO: clean this horrific thing up
@@ -167,12 +173,18 @@ impl<'a> AnnounceComponents {
                         //     None => ()
                         // }
 
-                        tx_announce.send(self).await.wont_error(&format!{"line: {}", line!{}});
+                        tx_announce
+                            .send(self)
+                            .await
+                            .wont_error(&format! {"line: {}", line!{}});
                     }
                 };
             } else {
                 // TODO : log the error here
-                tx_announce.send(self).await.wont_error(&format!{"line: {}", line!{}});
+                tx_announce
+                    .send(self)
+                    .await
+                    .wont_error(&format! {"line: {}", line!{}});
             }
         };
 
@@ -197,24 +209,36 @@ impl<'a> AnnounceComponents {
                 // check the contents of the actual scrape data
                 if let Ok(scrape_data) = res {
                     if self.allow_future_scrapes(scrape_data.complete) {
-                        tx_announce.send(self).await.wont_error(&format!{"line: {}", line!{}});
+                        tx_announce
+                            .send(self)
+                            .await
+                            .wont_error(&format! {"line: {}", line!{}});
                     } else {
                         println! {"dropped item"}
                     }
                     let db_wrap = connection::DatabaseUpsert::Data(scrape_data);
-                    tx_database.send(db_wrap).await.wont_error(&format!{"line: {}", line!{}});
+                    tx_database
+                        .send(db_wrap)
+                        .await
+                        .wont_error(&format! {"line: {}", line!{}});
                 }
                 // the scrape data was not ok
                 else {
                     // TODO: log this error
-                    tx_announce.send(self).await.wont_error(&format!{"line: {}", line!{}});
+                    tx_announce
+                        .send(self)
+                        .await
+                        .wont_error(&format! {"line: {}", line!{}});
                 }
             }
             // the timeout was not ok
             else {
                 // TODO: log the error
                 println! {"the timeout expired for a scrape"}
-                tx_announce.send(self).await.wont_error(&format!{"line: {}", line!{}});
+                tx_announce
+                    .send(self)
+                    .await
+                    .wont_error(&format! {"line: {}", line!{}});
             }
         };
 

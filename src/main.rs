@@ -5,19 +5,19 @@ pub mod database;
 pub mod error;
 pub mod read;
 pub mod requests;
-pub mod utils;
 pub mod traits;
+pub mod utils;
 
-use traits::WontError;
 use database::connection;
+use traits::WontError;
 
 use requests::rss_parse;
 
 use parking_lot::RwLock;
-use std::sync::Arc; 
+use std::sync::Arc;
 
 use futures::channel::mpsc;
-use futures::SinkExt; 
+use futures::SinkExt;
 // use futures::stream::Stream;
 use tokio;
 
@@ -71,7 +71,10 @@ async fn main() {
     for _ in 0..ann_components.len() {
         let comp = ann_components.remove(0);
         previous_hashes.insert(comp.info_hash.to_string());
-        tx_to_scrape.send(comp).await.wont_error(&format!{"line: {}", line!{}});;
+        tx_to_scrape
+            .send(comp)
+            .await
+            .wont_error(&format! {"line: {}", line!{}});
     }
     // .expect("sync database pull error")
     // .into_iter()

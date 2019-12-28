@@ -40,7 +40,7 @@ impl DatabaseConfig {
 pub fn start_async(mut rx: mpsc::Receiver<DatabaseUpsert>) {
     let db_url = DatabaseConfig::new().connection_url();
 
-    let fut =async move {
+    let fut = async move {
         let (client, _connection) = tokio_postgres::connect(&db_url, NoTls).await.unwrap();
         let prep_info = client.prepare("INSERT INTO info (info_hash, announce_url, creation_date, title) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING").await.unwrap();
         let prep_data = client.prepare("with ref_id as (select id from info where info_hash=$1 and announce_url =$2) insert into stats (stats_id, downloaded, seeding, incomplete, poll_time) values ((select * from ref_id), $3,$4,$5,$6)").await.unwrap();
@@ -54,7 +54,8 @@ pub fn start_async(mut rx: mpsc::Receiver<DatabaseUpsert>) {
                             &prep_info,
                             &[&*res.hash, &*res.url, &res.creation_date, &*res.title],
                         )
-                        .await.wont_error(&format!{"line: {}", line!{}});
+                        .await
+                        .wont_error(&format! {"line: {}", line!{}});
                     client
                         .query(
                             &prep_data,
@@ -67,13 +68,15 @@ pub fn start_async(mut rx: mpsc::Receiver<DatabaseUpsert>) {
                                 &res.poll_time,
                             ],
                         )
-                        .await.wont_error(&format!{"line: {}", line!{}});
+                        .await
+                        .wont_error(&format! {"line: {}", line!{}});
                 }
 
                 DatabaseUpsert::Error((hash, err, poll_time)) => {
                     client
                         .query(&prep_err, &[&err.to_str(), &*hash, &poll_time])
-                        .await.wont_error(&format!{"line: {}", line!{}});
+                        .await
+                        .wont_error(&format! {"line: {}", line!{}});
                 } // error match
             } // total match
 

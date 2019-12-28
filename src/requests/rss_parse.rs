@@ -104,8 +104,8 @@ pub async fn get_xml<T: Send + Sync + std::hash::BuildHasher + 'static>(
 
     let mut file = fs::File::create(&path).expect("xml file could not be created");
     if let Err(err) = file.write_all(&res_bytes) {
-        println!{"error writing rss feed to file:"}
-        dbg!{err};
+        println! {"error writing rss feed to file:"}
+        dbg! {err};
     }
 
     let channel = rss::Channel::read_from(res_bytes.as_slice()).expect("error when reading rss");

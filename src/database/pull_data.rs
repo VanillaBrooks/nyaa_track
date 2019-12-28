@@ -12,7 +12,7 @@ pub async fn database_announce_components() -> Result<Vec<AnnounceComponents>, E
     let pull = client.prepare("SELECT info_hash, creation_date, title, announce_url FROM info WHERE announce_url='http://nyaa.tracker.wf:7777/announce'").await?;
 
     let count = client.query("SELECT COUNT(*) FROM info", &[]).await?;
-    let len: i64 = count.get(0).unwrap().get(0); 
+    let len: i64 = count.get(0).unwrap().get(0);
     let mut res_vec: Vec<AnnounceComponents> = Vec::with_capacity(len as usize);
 
     for row in client.query(&pull, &[]).await? {
