@@ -1,21 +1,23 @@
+#![deny(unsafe_code)]
 // #[allow(unused_imports)]
-#![allow(unused_must_use)]
 // #[macro_use]
 pub mod database;
 pub mod error;
 pub mod read;
 pub mod requests;
 pub mod utils;
+pub mod traits;
 
+use traits::WontError;
 use database::connection;
 
 use requests::rss_parse;
 
 use parking_lot::RwLock;
-use std::sync::Arc;
+use std::sync::Arc; 
 
 use futures::channel::mpsc;
-use futures::SinkExt;
+use futures::SinkExt; 
 // use futures::stream::Stream;
 use tokio;
 
@@ -63,12 +65,13 @@ async fn main() {
     let (tx_filter, rx_filter) = mpsc::channel::<read::AnnounceComponents>(size); // to the step between rss and announce
 
     let mut previous_hashes = HashSet::<String>::new();
-    let mut ann_components =
-        database::pull_data::database_announce_components().expect("sync database pull error");
+    let mut ann_components = database::pull_data::database_announce_components()
+        .await
+        .expect("sync database pull error");
     for _ in 0..ann_components.len() {
         let comp = ann_components.remove(0);
         previous_hashes.insert(comp.info_hash.to_string());
-        tx_to_scrape.send(comp).await;
+        tx_to_scrape.send(comp).await.wont_error(&format!{"line: {}", line!{}});;
     }
     // .expect("sync database pull error")
     // .into_iter()
