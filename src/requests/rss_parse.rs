@@ -105,11 +105,7 @@ pub async fn get_xml<T: Send + Sync + std::hash::BuildHasher + 'static>(
     let mut file = fs::File::create(&path).expect("xml file could not be created");
     file.write_all(&res_bytes);
 
-    // expect should never trigger since its based on the unix epoch
-    // TODO: read directly from rss feed instead of saving and importing
-    let file = fs::File::open(&path).expect("file could not be opened");
-    let channel =
-        rss::Channel::read_from(std::io::BufReader::new(file)).expect("error when reading rss");
+    let channel = rss::Channel::read_from(res_bytes.as_slice()).expect("error when reading rss");
     let mut items = channel.into_items().to_vec();
 
     // std::fs::remove_file(path);

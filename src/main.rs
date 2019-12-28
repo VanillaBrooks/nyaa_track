@@ -63,8 +63,9 @@ async fn main() {
     let (tx_filter, rx_filter) = mpsc::channel::<read::AnnounceComponents>(size); // to the step between rss and announce
 
     let mut previous_hashes = HashSet::<String>::new();
-    let mut ann_components =
-        database::pull_data::database_announce_components().await.expect("sync database pull error");
+    let mut ann_components = database::pull_data::database_announce_components()
+        .await
+        .expect("sync database pull error");
     for _ in 0..ann_components.len() {
         let comp = ann_components.remove(0);
         previous_hashes.insert(comp.info_hash.to_string());
