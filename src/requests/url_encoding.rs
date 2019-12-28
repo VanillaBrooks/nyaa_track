@@ -41,7 +41,7 @@ pub fn hex_to_char(input: &str) -> String {
                 input_clone.push_str("%");
                 input_clone.push_str(chars);
             }
-        } 
+        }
         // dbg!{&input_clone};
     }
 

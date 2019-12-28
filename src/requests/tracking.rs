@@ -28,7 +28,7 @@ pub fn start_scrape_cycle_task(
     tokio::spawn(fut);
 }
 
-pub async fn filter_new_announces<T: Send + Sync + std::hash::BuildHasher + 'static>( 
+pub async fn filter_new_announces<T: Send + Sync + std::hash::BuildHasher + 'static>(
     mut rx_filter: mpsc::Receiver<AnnounceComponents>,
     tx_to_scrape: mpsc::Sender<AnnounceComponents>,
     tx_generic: mpsc::Sender<connection::DatabaseUpsert>,

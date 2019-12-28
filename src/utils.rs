@@ -203,7 +203,6 @@ pub fn torrents_with_hashes(directory: &str) -> Vec<Torrent> {
             let a = content_after_last_slash(&x).unwrap();
             let b = content_before_dot_torrent(&a).unwrap();
 
-
             if let Ok(mut torrent) = y {
                 torrent.set_info_hash(b);
                 results.push(torrent)
@@ -222,9 +221,7 @@ pub fn nyaa_si_announces_from_files(directory: &str) -> Vec<AnnounceComponents> 
         .filter(|x| {
             // make sure it has the url we are looking for
             match &x.announce {
-                Some(ann_url) => {
-                    ann_url.contains("http") && ann_url.contains("nyaa")
-                }
+                Some(ann_url) => ann_url.contains("http") && ann_url.contains("nyaa"),
                 None => false,
             }
         })
@@ -248,7 +245,6 @@ pub fn filter_nyaa_announces(data: Vec<AnnounceComponents>) -> Vec<AnnounceCompo
             // make sure it has the url we are looking for
             x.url.contains("http") && x.url.contains("nyaa")
         })
-
         .collect::<Vec<_>>()
 }
 
@@ -293,7 +289,7 @@ pub fn check_hashes(dir_to_read: &str) {
 
     println! {"good hashes:\t {}\tbad hashes:\t {}", good, bad.len()}
     if !bad.is_empty() {
-        dbg!{bad};
+        dbg! {bad};
     }
 }
 
