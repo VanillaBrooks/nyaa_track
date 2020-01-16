@@ -76,13 +76,6 @@ async fn main() {
             .await
             .wont_error(&format! {"line: {}", line!{}});
     }
-    // .expect("sync database pull error")
-    // .into_iter()
-    // // .take(1)
-    // .for_each(move |x| {
-    //     previous_hashes.insert(x.info_hash.to_string());
-    //     tx_to_scrape.clone().send(x).await;
-    // });
 
     let previous = Arc::new(RwLock::new(previous_hashes));
 
@@ -92,7 +85,6 @@ async fn main() {
     let mut si_timer = rss_parse::Timer::new(60, SI_RSS);
 
     // core logic of the program
-
     let runtime = async move {
         requests::tracking::filter_new_announces(
             rx_filter,
