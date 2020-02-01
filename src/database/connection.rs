@@ -41,7 +41,14 @@ pub fn start_async(mut rx: mpsc::Receiver<DatabaseUpsert>) {
     let db_url = DatabaseConfig::new().connection_url();
 
     let fut = async move {
-        let (client, _connection) = tokio_postgres::connect(&db_url, NoTls).await.unwrap();
+        let (client, connection) = tokio_postgres::connect(&db_url, NoTls).await.unwrap();
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("main connection error: {}", e);
+            }
+        });
+            
         let prep_info = client.prepare("INSERT INTO info (info_hash, announce_url, creation_date, title) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING").await.unwrap();
         let prep_data = client.prepare("with ref_id as (select id from info where info_hash=$1 and announce_url =$2) insert into stats (stats_id, downloaded, seeding, incomplete, poll_time) values ((select * from ref_id), $3,$4,$5,$6)").await.unwrap();
         let prep_err = client.prepare("with type_id_ as ( select type_id from error_types where error_name = $1 ), info_id_ as ( select id from info where info_hash = $2 ) insert into error (err_type, info_id, poll_time) VALUES ( (select * from type_id_), (select * from info_id_), $3);").await.unwrap();

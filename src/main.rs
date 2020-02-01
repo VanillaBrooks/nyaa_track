@@ -1,6 +1,4 @@
 #![deny(unsafe_code)]
-// #[allow(unused_imports)]
-// #[macro_use]
 pub mod database;
 pub mod error;
 pub mod read;
@@ -19,7 +17,6 @@ use std::sync::Arc;
 use futures::channel::mpsc;
 use futures::SinkExt;
 // use futures::stream::Stream;
-use tokio;
 
 use hashbrown::HashSet;
 
@@ -52,22 +49,22 @@ macro_rules! rss_check {
     };
 }
 
-/// start the asynchronous database with handler
-fn start_database_task(rx_generic: mpsc::Receiver<connection::DatabaseUpsert>) {
-    database::connection::start_async(rx_generic);
-}
-
-#[tokio::main]
-async fn main() {
+#[tokio::main(core_threads = 4)]
+async fn main() -> () {
     let size = 1_024 * 1_024 * 100; // 100 MB cache
     let (tx_generic, rx_generic) = mpsc::channel::<connection::DatabaseUpsert>(size); // to database
     let (mut tx_to_scrape, rx_to_scrape) = mpsc::channel::<read::AnnounceComponents>(size); // to the scrape / announce cycle
     let (tx_filter, rx_filter) = mpsc::channel::<read::AnnounceComponents>(size); // to the step between rss and announce
 
+    dbg! {"made pipes"};
+
     let mut previous_hashes = HashSet::<String>::new();
     let mut ann_components = database::pull_data::database_announce_components()
         .await
         .expect("sync database pull error");
+
+    dbg! {"pulled from database"};
+
     for _ in 0..ann_components.len() {
         let comp = ann_components.remove(0);
         previous_hashes.insert(comp.info_hash.to_string());
@@ -86,6 +83,8 @@ async fn main() {
 
     // core logic of the program
     let runtime = async move {
+        dbg! {"RUNTIME filtering new announces"};
+
         requests::tracking::filter_new_announces(
             rx_filter,
             tx_to_scrape.clone(),
@@ -94,9 +93,12 @@ async fn main() {
         )
         .await;
 
+        dbg! {"RUNTIME starting scrape cycle"};
         requests::tracking::start_scrape_cycle_task(rx_to_scrape, tx_to_scrape, tx_generic);
 
-        start_database_task(rx_generic);
+        dbg! {"RUNTIME starting database connection"};
+        // spawns a database task
+        database::connection::start_async(rx_generic);
 
         loop {
             /*
@@ -106,5 +108,6 @@ async fn main() {
         }
     };
 
-    tokio::spawn(runtime);
+    // tokio::spawn(
+    runtime.await;
 }

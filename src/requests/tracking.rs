@@ -8,6 +8,7 @@ use futures::StreamExt;
 use hashbrown::HashSet;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use tokio;
 
 /// starts task for cycling through scrapes
 /// recieves announce component and spawns a request after a timer
@@ -17,10 +18,10 @@ pub fn start_scrape_cycle_task(
     tx_to_scrape: mpsc::Sender<AnnounceComponents>,
     tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
 ) {
-    dbg! {"starting scrape task"};
-
     let fut = async move {
+        // dbg! {"|||||||||||||||||||| starting scrape task"};
         while let Some(ann) = rx_to_scrape.next().await {
+            // dbg! {"running new scrape"};
             ann.get(tx_to_scrape.clone(), tx_generic.clone()).await;
         }
     };
@@ -34,12 +35,12 @@ pub async fn filter_new_announces<T: Send + Sync + std::hash::BuildHasher + 'sta
     tx_generic: mpsc::Sender<connection::DatabaseUpsert>,
     previous_lock: Arc<RwLock<HashSet<String, T>>>,
 ) {
-    dbg! {"starting filter task"};
-
     let fut = async move {
+        dbg! {"|||||||||||||||||||| started filter new announce. nothing recieved yet"};
         while let Some(ann) = rx_filter.next().await {
             // this is blocked to prevent .await lifetime issues
             {
+                dbg! {"new announce recieved"};
                 let mut previous = previous_lock.write();
                 previous.insert(ann.info_hash.to_string());
             }
@@ -47,8 +48,6 @@ pub async fn filter_new_announces<T: Send + Sync + std::hash::BuildHasher + 'sta
             ann.get(tx_to_scrape.clone(), tx_generic.clone()).await;
         }
     };
-
-    dbg! {"returning from filteR_new_announces. this should not happen"};
 
     tokio::spawn(fut);
 }

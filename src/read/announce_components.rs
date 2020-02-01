@@ -327,7 +327,7 @@ impl<'a> AnnounceComponents {
         let days_alive = (utils::get_unix_time() - self.creation_date) / 86400;
 
         // older than 7 days, less than 100 active seeders we terminate tracking
-        !days_alive > 7 && seeders < 100
+        days_alive > 14 && seeders < 40
     }
 
     fn allow_announce(&self) -> i64 {

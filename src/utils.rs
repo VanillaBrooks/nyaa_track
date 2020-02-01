@@ -1,5 +1,4 @@
 use hyper::client::{Client, HttpConnector};
-use hyper::rt::{Future, Stream};
 use hyper_tls::HttpsConnector;
 use std::io::prelude::*;
 
