@@ -72,10 +72,10 @@ def pull_stats(info_hash):
 
 
 if __name__ == "__main__":
-	url = "578d141ae78bfb5629fa1be94b00a8a6d0f2553a"
+	url = "6baa34bcb1c06a2475c0c96a7c36684917f44ee8"
 	print(url)
 	print(url_encoding(url))
 
-	pull_stats(url)
+	# pull_stats(url)
 
 

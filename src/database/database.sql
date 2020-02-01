@@ -75,4 +75,4 @@ create view benchmark as
 -- fetch the distinc ids that have been updated in the last hour
 create view current_track as 
 	with unix_time as (select extract(epoch from now()))
-	select count(DISTINCT stats_id) from stats where poll_time >= ((select *  from unix_time) - 3600) and poll_time <= (select * from unix_time) 
+	select count(DISTINCT stats_id) from stats where poll_time >= ((select *  from unix_time) - 3600) and poll_time <= (select * from unix_time);

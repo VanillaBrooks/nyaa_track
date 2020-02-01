@@ -2,8 +2,6 @@ use super::super::error::*;
 use super::super::read::AnnounceComponents;
 use super::connection;
 
-use tokio_postgres::{self, NoTls};
-
 pub async fn database_announce_components() -> Result<Vec<AnnounceComponents>, Error> {
     let db_url = connection::DatabaseConfig::new().connection_url();
 
