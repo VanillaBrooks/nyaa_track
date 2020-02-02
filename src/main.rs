@@ -30,7 +30,7 @@ const PANTSU_RSS: &str = r"https://nyaa.pantsu.cat/feed?";
 macro_rules! rss_check {
     ($timer:ident, $previous:ident, $tx_ann:ident) => {
         if $timer.allow_check() {
-            dbg! {"running rss check"};
+            // dbg! {"running rss check"};
             let rss_previous_clone = $previous.clone();
             let tx_ann_clone = $tx_ann.clone();
             let url_clone = $timer.url.clone();
@@ -39,7 +39,7 @@ macro_rules! rss_check {
                 let res = rss_parse::get_xml(url_clone, rss_previous_clone, tx_ann_clone).await;
 
                 if res.is_ok() {
-                    dbg! {"finished rss write"}
+                    // dbg! {"finished rss write"}
                 } else {
                     dbg! {" error with rss task"}
                 }
