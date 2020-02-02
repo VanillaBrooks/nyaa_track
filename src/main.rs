@@ -18,7 +18,7 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 // use futures::stream::Stream;
 
-use hashbrown::HashSet;
+use std::collections::HashSet;
 
 #[allow(dead_code)]
 const SI_RSS: &str = r"https://nyaa.si/?page=rss";

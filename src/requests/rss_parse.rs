@@ -10,7 +10,7 @@ use std::io::prelude::*;
 use std::thread;
 use std::time::{self, Duration};
 
-use hashbrown::HashSet;
+use std::collections::HashSet;
 
 use super::super::utils;
 

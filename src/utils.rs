@@ -12,7 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use tokio;
 
-use hashbrown::HashSet;
+use std::collections::HashSet;
 
 use super::read::{announce_components, torrent};
 use announce_components::AnnounceComponents;

@@ -1,7 +1,7 @@
 use super::super::error::*;
 use super::super::utils;
-use hashbrown::HashMap;
 use lazy_static::lazy_static;
+use std::collections::HashMap;
 // expects string to be lowercase
 pub fn hex_to_char(input: &str) -> String {
     // let input = input.to_uppercase();

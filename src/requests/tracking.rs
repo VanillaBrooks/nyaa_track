@@ -5,8 +5,8 @@ use super::super::read::AnnounceComponents;
 use futures::channel::mpsc;
 use futures::StreamExt;
 
-use hashbrown::HashSet;
 use parking_lot::RwLock;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio;
 

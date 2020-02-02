@@ -1,6 +1,5 @@
 use super::read::{AnnounceComponents, Torrent};
 use http;
-use postgres;
 
 // from_type: Type that will be converted away from
 // to_type: Destination enum that we are converting to
@@ -42,23 +41,23 @@ macro_rules! impl_from {
 #[derive(Debug)]
 pub enum Error {
     IO(std::io::Error),
-    Reqwest(reqwest::Error),
+    // Reqwest(reqwest::Error),
     Rss(RssErrors),
     UrlError,
     Torrent(TorrentErrors),
     Announce(AnnounceErrors),
     SliceError(String),
-    Postgres(postgres::error::Error),
     HTTP(HTTPErrors),
     ShouldNeverHappen(String),
     Futures(FuturesErrors),
+    TokioPostgres(tokio_postgres::Error),
 }
 
-impl From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Error {
-        Error::Reqwest(error)
-    }
-}
+// impl From<reqwest::Error> for Error {
+//     fn from(error: reqwest::Error) -> Error {
+//         Error::Reqwest(error)
+//     }
+// }
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Error {
         Error::IO(error)
@@ -79,9 +78,9 @@ impl From<serde_urlencoded::ser::Error> for Error {
         Error::Announce(AnnounceErrors::SerdeError(error))
     }
 }
-impl From<postgres::error::Error> for Error {
-    fn from(error: postgres::error::Error) -> Error {
-        Error::Postgres(error)
+impl From<tokio_postgres::Error> for Error {
+    fn from(error: tokio_postgres::Error) -> Error {
+        Error::TokioPostgres(error)
     }
 }
 impl From<hyper::Error> for Error {
