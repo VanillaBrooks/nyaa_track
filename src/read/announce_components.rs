@@ -117,7 +117,7 @@ impl<'a> AnnounceComponents {
         mut tx_announce: mpsc::Sender<AnnounceComponents>,
         mut tx_database: mpsc::Sender<connection::DatabaseUpsert>,
     ) {
-        println! {"STARTING ANNOUNCE"}
+        dbg! {"STARTING ANNOUNCE"};
 
         let fut = async move {
             let timeout_fut = tokio::time::timeout(Duration::from_secs(10), self.announce()).await;
@@ -125,7 +125,7 @@ impl<'a> AnnounceComponents {
             if let Ok(res) = timeout_fut {
                 match res {
                     Ok((data, new_interval)) => {
-                        println! {"good announce result"}
+                        dbg! {"good announce result"};
 
                         self.next_announce = new_interval + utils::get_unix_time();
 
@@ -135,7 +135,7 @@ impl<'a> AnnounceComponents {
                                 .await
                                 .wont_error(&format! {"line: {}", line!{}});
                         } else {
-                            println! {"dropped item"}
+                            dbg! {"dropped item"};
                         }
 
                         let db_wrap = connection::DatabaseUpsert::Data(data);
@@ -214,7 +214,7 @@ impl<'a> AnnounceComponents {
                             .await
                             .wont_error(&format! {"line: {}", line!{}});
                     } else {
-                        println! {"dropped item"}
+                        dbg! {"dropped item"};
                     }
                     let db_wrap = connection::DatabaseUpsert::Data(scrape_data);
                     tx_database
@@ -327,7 +327,7 @@ impl<'a> AnnounceComponents {
         let days_alive = (utils::get_unix_time() - self.creation_date) / 86400;
 
         // older than 7 days, less than 100 active seeders we terminate tracking
-        days_alive > 14 && seeders < 40
+        !(days_alive > 14 && seeders < 40)
     }
 
     fn allow_announce(&self) -> i64 {

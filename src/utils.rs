@@ -145,7 +145,7 @@ pub fn compare_files(f1: &str, f2: &str) -> Result<(), Error> {
     let mut file2 = std::fs::File::open(f2).unwrap();
     file2.read_to_end(&mut buffer2)?;
 
-    println! {"f1 len:\t{}\tf2 len:\t{}",buffer1.len(), buffer2.len()}
+    println! {"f1 len:\t{}\tf2 len:\t{}",buffer1.len(), buffer2.len()};
 
     let len; // might be the source of a bug here
     if buffer1.len() > f2.len() {
@@ -261,8 +261,6 @@ pub fn info_hash_set(directory: &str) -> HashSet<String> {
 }
 
 pub fn check_hashes(dir_to_read: &str) {
-    //Vec<(String, Torrent)>{
-
     let dir: Vec<_> = serialize_all_torrents(dir_to_read);
 
     let mut good = 0;

@@ -17,11 +17,12 @@ pub(crate) struct DatabaseConfig {
     database_name: String,
     username: String,
     password: String,
+    address: String,
 }
 
 impl DatabaseConfig {
     pub(crate) fn new() -> Self {
-        let path = r".\config.json".to_string();
+        let path = r"./config.json".to_string();
 
         let file = fs::File::open(path).expect("config.json DOES NOT EXIST");
         let reader = io::BufReader::new(file);
@@ -30,7 +31,8 @@ impl DatabaseConfig {
             .expect("port, database, username, password were not all filled.")
     }
     pub(crate) fn connection_url(&self) -> String {
-        format! {"postgresql://{}:{}@localhost:{}/{}",self.username, self.password, self.port, self.database_name}
+        // format! {"postgresql://{}:{}@localhost:{}/{}",self.username, self.password, self.port, self.database_name}
+        format! {"postgresql://{}:{}@{}:{}/{}",self.username, self.password, self.address,self.port, self.database_name}
     }
 }
 
@@ -48,7 +50,7 @@ pub fn start_async(mut rx: mpsc::Receiver<DatabaseUpsert>) {
                 eprintln!("main connection error: {}", e);
             }
         });
-            
+
         let prep_info = client.prepare("INSERT INTO info (info_hash, announce_url, creation_date, title) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING").await.unwrap();
         let prep_data = client.prepare("with ref_id as (select id from info where info_hash=$1 and announce_url =$2) insert into stats (stats_id, downloaded, seeding, incomplete, poll_time) values ((select * from ref_id), $3,$4,$5,$6)").await.unwrap();
         let prep_err = client.prepare("with type_id_ as ( select type_id from error_types where error_name = $1 ), info_id_ as ( select id from info where info_hash = $2 ) insert into error (err_type, info_id, poll_time) VALUES ( (select * from type_id_), (select * from info_id_), $3);").await.unwrap();
@@ -87,7 +89,7 @@ pub fn start_async(mut rx: mpsc::Receiver<DatabaseUpsert>) {
                 } // error match
             } // total match
 
-            dbg! {"finsihed insertion"};
+            // dbg! {"finsihed insertion"};
         }
     };
 

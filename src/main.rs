@@ -39,9 +39,9 @@ macro_rules! rss_check {
                 let res = rss_parse::get_xml(url_clone, rss_previous_clone, tx_ann_clone).await;
 
                 if res.is_ok() {
-                    println! {"finished rss write"}
+                    dbg! {"finished rss write"}
                 } else {
-                    println! {" error with rss task"}
+                    dbg! {" error with rss task"}
                 }
             };
             tokio::spawn(rss_fut);
@@ -56,14 +56,14 @@ async fn main() -> () {
     let (mut tx_to_scrape, rx_to_scrape) = mpsc::channel::<read::AnnounceComponents>(size); // to the scrape / announce cycle
     let (tx_filter, rx_filter) = mpsc::channel::<read::AnnounceComponents>(size); // to the step between rss and announce
 
-    dbg! {"made pipes"};
+    // dbg! {"made pipes"};
 
     let mut previous_hashes = HashSet::<String>::new();
     let mut ann_components = database::pull_data::database_announce_components()
         .await
         .expect("sync database pull error");
 
-    dbg! {"pulled from database"};
+    // dbg! {"pulled from database"};
 
     for _ in 0..ann_components.len() {
         let comp = ann_components.remove(0);
@@ -76,14 +76,14 @@ async fn main() -> () {
 
     let previous = Arc::new(RwLock::new(previous_hashes));
 
-    dbg! {"finished adding to queue"};
+    // dbg! {"finished adding to queue"};
 
     // tracking for nyaa.si
     let mut si_timer = rss_parse::Timer::new(60, SI_RSS);
 
     // core logic of the program
     let runtime = async move {
-        dbg! {"RUNTIME filtering new announces"};
+        // dbg! {"RUNTIME filtering new announces"};
 
         requests::tracking::filter_new_announces(
             rx_filter,
@@ -93,10 +93,10 @@ async fn main() -> () {
         )
         .await;
 
-        dbg! {"RUNTIME starting scrape cycle"};
+        // dbg! {"RUNTIME starting scrape cycle"};
         requests::tracking::start_scrape_cycle_task(rx_to_scrape, tx_to_scrape, tx_generic);
 
-        dbg! {"RUNTIME starting database connection"};
+        // dbg! {"RUNTIME starting database connection"};
         // spawns a database task
         database::connection::start_async(rx_generic);
 
@@ -108,6 +108,6 @@ async fn main() -> () {
         }
     };
 
-    // tokio::spawn(
+    // dbg!{"starting runtime"};
     runtime.await;
 }

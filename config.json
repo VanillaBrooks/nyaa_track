@@ -1,0 +1,7 @@
+{
+    "username" : "username",
+    "password" : "password",
+    "database_name" : "nyaa",
+    "port": 5432,
+    "address" : "psql"
+}

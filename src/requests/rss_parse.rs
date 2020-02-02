@@ -133,7 +133,7 @@ pub struct Timer<'a> {
 impl<'a> Timer<'a> {
     pub fn new(between: u32, url: &'a str) -> Timer<'a> {
         Timer {
-            last_check: time::Instant::now(),
+            last_check: time::Instant::now() - Duration::from_secs(u64::from(between) + 1),
             time_between: between,
             url,
         }

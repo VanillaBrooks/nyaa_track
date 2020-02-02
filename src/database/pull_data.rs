@@ -9,6 +9,8 @@ pub async fn database_announce_components() -> Result<Vec<AnnounceComponents>, E
 
     let db_url = connection::DatabaseConfig::new().connection_url();
 
+    dbg! {&db_url};
+
     let (client, connection) = tokio_postgres::connect(&db_url, NoTls).await?;
 
     // The connection object performs the actual communication with the database,
@@ -25,7 +27,7 @@ pub async fn database_announce_components() -> Result<Vec<AnnounceComponents>, E
     let len: i64 = count.get(0).unwrap().get(0);
     let mut res_vec: Vec<AnnounceComponents> = Vec::with_capacity(len as usize);
 
-    dbg! {"before loop"};
+    // dbg! {"before loop"};
 
     for row in client.query(&pull, &[]).await? {
         let hash = row.get(0);
@@ -37,7 +39,7 @@ pub async fn database_announce_components() -> Result<Vec<AnnounceComponents>, E
             Err(e) => println! {"serialize to AnnounceComponents error: {:?}", e},
         }
     }
-    dbg! {"after loop"};
+    // dbg! {"after loop"};
 
     Ok(res_vec)
 }

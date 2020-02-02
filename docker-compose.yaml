@@ -1,0 +1,31 @@
+# docker volume create --name data
+
+version: '3'
+
+services:
+
+  psql:
+    restart: always
+    build:
+      dockerfile: Dockerfile-postgres
+      context: .
+    environment:
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: nyaa
+    ports: 
+        - 6513:5432
+    volumes:
+        - data:/var/lib/postgresql/data
+
+  nyaa:
+    build: .
+    ports:
+      - "5000:5000"
+    links:
+      - psql
+    # restart: never
+    
+volumes:
+  data:
+    external: true
